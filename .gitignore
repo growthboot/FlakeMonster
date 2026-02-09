@@ -1,0 +1,4 @@
+node_modules/
+.flake-monster/
+*.log
+.DS_Store

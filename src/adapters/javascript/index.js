@@ -1,0 +1,85 @@
+import { fileURLToPath } from 'node:url';
+import { dirname, join, posix } from 'node:path';
+import { parseSource } from './parser.js';
+import { injectDelays, addRuntimeImport } from './injector.js';
+import { removeDelays, removeRuntimeImport, recoverDelays, scanForRecovery } from './remover.js';
+import { generateSource } from './codegen.js';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const RUNTIME_FILENAME = 'flake-monster.runtime.js';
+
+/**
+ * Compute the relative import path from a file to the runtime at the project root.
+ * e.g. for "src/user.js" -> "../flake-monster.runtime.js"
+ *      for "app.js" -> "./flake-monster.runtime.js"
+ * @param {string} filePath - relative file path from project root
+ * @returns {string}
+ */
+function computeRuntimeImportPath(filePath) {
+  // Count directory depth
+  const parts = filePath.split('/').filter(Boolean);
+  if (parts.length <= 1) {
+    // File is at root level
+    return `./${RUNTIME_FILENAME}`;
+  }
+  // Go up (parts.length - 1) directories
+  const ups = '../'.repeat(parts.length - 1);
+  return `${ups}${RUNTIME_FILENAME}`;
+}
+
+/**
+ * Create the JavaScript language adapter.
+ * Handles .js and .mjs files with ESM import/export syntax.
+ *
+ * @returns {import('../adapter-interface.js').LanguageAdapter}
+ */
+export function createJavaScriptAdapter() {
+  return {
+    id: 'javascript',
+    displayName: 'JavaScript (ESM)',
+    fileExtensions: ['.js', '.mjs'],
+
+    canHandle(filePath) {
+      return this.fileExtensions.some((ext) => filePath.endsWith(ext));
+    },
+
+    inject(source, options) {
+      const { ast } = parseSource(source);
+      const points = injectDelays(ast, options);
+      const runtimeNeeded = points.length > 0;
+
+      if (runtimeNeeded) {
+        const importPath = computeRuntimeImportPath(options.filePath);
+        addRuntimeImport(ast, importPath);
+      }
+
+      const output = generateSource(ast);
+      return { source: output, points, runtimeNeeded };
+    },
+
+    remove(source, options = {}) {
+      if (options.recover) {
+        // Recovery mode: text-based removal for mangled code
+        const { source: recovered, recoveredCount } = recoverDelays(source);
+        return { source: recovered, removedCount: recoveredCount };
+      }
+
+      const { ast } = parseSource(source);
+      const removedCount = removeDelays(ast);
+      removeRuntimeImport(ast);
+      const output = generateSource(ast);
+      return { source: output, removedCount };
+    },
+
+    scan(source) {
+      return scanForRecovery(source);
+    },
+
+    getRuntimeInfo() {
+      return {
+        runtimeSourcePath: join(__dirname, '..', '..', 'runtime', 'javascript', RUNTIME_FILENAME),
+        runtimeFileName: RUNTIME_FILENAME,
+      };
+    },
+  };
+}

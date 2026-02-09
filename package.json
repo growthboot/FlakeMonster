@@ -1,0 +1,33 @@
+{
+  "name": "flake-monster",
+  "version": "0.1.0",
+  "description": "Source-to-source test hardener that injects async delays to surface flaky tests",
+  "type": "module",
+  "bin": {
+    "flake-monster": "./bin/flake-monster.js"
+  },
+  "scripts": {
+    "test": "node --test test/unit/*.test.js",
+    "test:integration": "node --test test/integration/*.test.js",
+    "test:all": "node --test test/**/*.test.js"
+  },
+  "keywords": [
+    "flaky-tests",
+    "testing",
+    "async",
+    "chaos-engineering",
+    "test-hardener"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "acorn": "^8.14.0",
+    "acorn-walk": "^8.3.4",
+    "astravel": "^0.6.1",
+    "astring": "^1.9.0",
+    "commander": "^13.1.0",
+    "fast-glob": "^3.3.3"
+  }
+}
