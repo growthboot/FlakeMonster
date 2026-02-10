@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="none">
+  <!-- Body -->
+  <ellipse cx="60" cy="68" rx="42" ry="40" fill="#40b85c"/>
+  <ellipse cx="60" cy="68" rx="42" ry="40" fill="url(#bodyGrad)"/>
+
+  <!-- Horns -->
+  <path d="M38 32 L30 10 L44 28Z" fill="#2d8a43"/>
+  <path d="M82 32 L90 10 L76 28Z" fill="#2d8a43"/>
+
+  <!-- Eye (big, single, centered) -->
+  <circle cx="60" cy="60" r="18" fill="white"/>
+  <circle cx="62" cy="58" r="10" fill="#1a1a2e"/>
+  <circle cx="65" cy="55" r="3.5" fill="white"/>
+
+  <!-- Mouth -->
+  <path d="M42 82 Q50 94 60 88 Q70 94 78 82" stroke="#1a1a2e" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+  <!-- Teeth -->
+  <rect x="49" y="82" width="5" height="6" rx="1" fill="white"/>
+  <rect x="60" y="83" width="5" height="5" rx="1" fill="white"/>
+
+  <!-- Lightning crack (flakiness) -->
+  <path d="M85 38 L78 52 L84 52 L74 70" stroke="#ffd43b" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+
+  <!-- Feet -->
+  <ellipse cx="44" cy="106" rx="10" ry="5" fill="#2d8a43"/>
+  <ellipse cx="76" cy="106" rx="10" ry="5" fill="#2d8a43"/>
+
+  <!-- Arms -->
+  <path d="M20 65 Q10 58 14 48" stroke="#2d8a43" stroke-width="6" stroke-linecap="round" fill="none"/>
+  <path d="M100 65 Q110 58 106 48" stroke="#2d8a43" stroke-width="6" stroke-linecap="round" fill="none"/>
+
+  <defs>
+    <radialGradient id="bodyGrad" cx="45%" cy="40%">
+      <stop offset="0%" stop-color="#5cd87a" stop-opacity="0.5"/>
+      <stop offset="100%" stop-color="#40b85c" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+</svg>

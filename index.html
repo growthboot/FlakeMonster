@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FlakeMonster — Surface flaky tests with deterministic delays</title>
+  <link rel="icon" type="image/svg+xml" href="website/logo.svg">
+  <link rel="stylesheet" href="website/styles.css">
+
+  <script type="importmap">
+  {
+    "imports": {
+      "acorn": "https://esm.sh/acorn@8.15.0",
+      "acorn-walk": "https://esm.sh/acorn-walk@8.3.4",
+      "astravel": "https://esm.sh/astravel@0.6.1",
+      "astring": "https://esm.sh/astring@1.9.0"
+    }
+  }
+  </script>
+
+  <script type="module" src="website/demos.js"></script>
+</head>
+<body>
+
+  <!-- Header -->
+  <header>
+    <img src="website/logo.svg" alt="FlakeMonster logo" class="logo">
+    <h1>FlakeMonster</h1>
+    <p class="tagline">Surface flaky tests by injecting deterministic async delays</p>
+    <nav>
+      <a href="#jitter-demo">Jitter</a>
+      <a href="#code-demo">Injection</a>
+      <a href="#seed-demo">Seeds</a>
+      <a href="https://github.com/andrewdear/flake-monster">GitHub</a>
+    </nav>
+  </header>
+
+  <!-- Hero -->
+  <section id="hero">
+    <p>
+      Your tests run too fast. API calls resolve instantly, every async operation
+      completes in the same order, and race conditions hide. FlakeMonster injects
+      <code>await</code> delays between statements in async functions, forcing the
+      event loop to yield where it normally wouldn't. Same seed, same delays. Every time.
+    </p>
+  </section>
+
+  <!-- Demo 1: Jitter Animation -->
+  <section id="jitter-demo">
+    <h2>Jitter Animation</h2>
+    <p>See how FlakeMonster reorders async operations by injecting deterministic delays.</p>
+
+    <div class="controls">
+      <label>Seed: <input type="number" id="jitter-seed" value="42"></label>
+      <button id="jitter-run">Run</button>
+    </div>
+
+    <div class="panels">
+      <div class="panel">
+        <h3>Without FlakeMonster</h3>
+        <div id="jitter-without" class="jitter-bars"></div>
+      </div>
+      <div class="panel">
+        <h3>With FlakeMonster</h3>
+        <div id="jitter-with" class="jitter-bars"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Demo 2: Code Before/After -->
+  <section id="code-demo">
+    <h2>Code Injection</h2>
+    <p>Watch FlakeMonster inject delay statements into real JavaScript code.</p>
+
+    <div class="controls">
+      <div class="toggle-group" id="code-mode">
+        <button data-value="light">Light</button>
+        <button data-value="medium" class="active">Medium</button>
+        <button data-value="hardcore">Hardcore</button>
+      </div>
+      <label>Seed:
+        <span class="stepper">
+          <button class="stepper-btn" data-delta="-1">&minus;</button>
+          <input type="number" id="code-seed" value="42">
+          <button class="stepper-btn" data-delta="1">+</button>
+        </span>
+      </label>
+      <button id="code-inject">Inject</button>
+      <button id="code-restore" class="secondary" disabled>Restore</button>
+    </div>
+
+    <div class="panels">
+      <div class="panel">
+        <h3>Original</h3>
+        <div class="code-block"><code id="code-original"></code></div>
+      </div>
+      <div class="panel">
+        <h3>Injected</h3>
+        <div class="code-block"><code id="code-injected"></code></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Demo 3: Seed Explorer -->
+  <section id="seed-demo">
+    <h2>Seed Explorer</h2>
+    <p>Every (seed, file, function, position) tuple produces the same delay. Always.</p>
+
+    <div class="controls">
+      <label>Seed: <input type="number" id="seed-value" value="42"></label>
+      <label>File: <input type="text" id="seed-file" value="src/user.js"></label>
+      <label>Function: <input type="text" id="seed-fn" value="loadUser"></label>
+    </div>
+
+    <div id="seed-chart" class="seed-chart"></div>
+    <pre id="seed-breakdown" class="seed-breakdown"></pre>
+  </section>
+
+  <!-- Footer -->
+  <footer>
+    <p>MIT License &middot; <a href="https://github.com/andrewdear/flake-monster">Source on GitHub</a></p>
+  </footer>
+
+</body>
+</html>
