@@ -2,7 +2,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join, posix } from 'node:path';
 import { parseSource } from './parser.js';
 import { injectDelays, addRuntimeImport } from './injector.js';
-import { removeDelays, removeRuntimeImport, recoverDelays, scanForRecovery } from './remover.js';
+import { recoverDelays, scanForRecovery } from './remover.js';
 import { generateSource } from './codegen.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -57,18 +57,9 @@ export function createJavaScriptAdapter() {
       return { source: output, points, runtimeNeeded };
     },
 
-    remove(source, options = {}) {
-      if (options.recover) {
-        // Recovery mode: text-based removal for mangled code
-        const { source: recovered, recoveredCount } = recoverDelays(source);
-        return { source: recovered, removedCount: recoveredCount };
-      }
-
-      const { ast } = parseSource(source);
-      const removedCount = removeDelays(ast);
-      removeRuntimeImport(ast);
-      const output = generateSource(ast);
-      return { source: output, removedCount };
+    remove(source) {
+      const { source: cleaned, recoveredCount } = recoverDelays(source);
+      return { source: cleaned, removedCount: recoveredCount };
     },
 
     scan(source) {

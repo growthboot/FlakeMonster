@@ -46,8 +46,8 @@ export function registerRestoreCommand(program) {
   program
     .command('restore')
     .description('Remove all injected delays and restore original source')
-    .option('--in-place', 'Restore in-place modified files', false)
-    .option('--recover', 'Use loose text-based matching to recover from mangled injections', false)
+    .option('--in-place', 'Restore in-place modified files (default)', true)
+    .option('--recover', 'Interactive scan and confirm — use when traces of injected code remain after a normal restore', false)
     .option('--dir <path>', 'Directory to restore (defaults to project root)')
     .action(async (options) => {
       try {
@@ -89,7 +89,7 @@ export function registerRestoreCommand(program) {
             return;
           }
 
-          const { filesRestored, injectionsRemoved } = await engine.restoreAll(targetDir, manifest, { recover: true });
+          const { filesRestored, injectionsRemoved } = await engine.restoreAll(targetDir, manifest);
           await Manifest.delete(flakeDir);
 
           console.log(`\n  Recovered ${filesRestored} file(s), removed ${injectionsRemoved} line(s)`);

@@ -68,7 +68,7 @@
  *   Parse source text, inject delay statements, return modified source + metadata.
  *
  * @property {(source: string) => RemovalResult} remove
- *   Parse source text, remove all flake-monster injections, return cleaned source.
+ *   Remove all flake-monster injections using text-based pattern matching, return cleaned source.
  *
  * @property {() => RuntimeInfo} getRuntimeInfo
  *   Returns info about the runtime file for this language.

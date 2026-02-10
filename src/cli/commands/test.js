@@ -35,7 +35,8 @@ export function registerTestCommand(program) {
     .option('-m, --mode <mode>', 'Injection density: light, medium, hardcore', 'medium')
     .option('-s, --seed <seed>', 'Base seed (or "auto")', 'auto')
     .option('-c, --cmd <command>', 'Test command to execute', 'npm test')
-    .option('--in-place', 'Modify source files directly instead of using workspace copies', false)
+    .option('--in-place', 'Modify source files directly (default)', true)
+    .option('--workspace', 'Use workspace copies instead of modifying source files directly', false)
     .option('--keep-on-fail', 'Keep workspace on test failure for inspection', false)
     .option('--keep-all', 'Keep all workspaces (pass or fail)', false)
     .option('--min-delay <ms>', 'Minimum delay in milliseconds', '0')
@@ -50,7 +51,7 @@ export function registerTestCommand(program) {
         const baseSeed = parseSeed(options.seed);
         const runs = Number(options.runs);
         const testCmd = options.cmd;
-        const inPlace = options.inPlace;
+        const inPlace = !options.workspace;
 
         const profile = FlakeProfile.fromConfig(merged);
         const registry = new AdapterRegistry();
@@ -158,9 +159,9 @@ export function registerTestCommand(program) {
         if (anyFailed) process.exit(1);
       } catch (err) {
         // If in-place mode fails mid-run, still try to restore
-        if (options?.inPlace) {
+        if (!options?.workspace) {
           console.error('\nError during in-place test run. Attempting to restore source files...');
-          console.error('If restoration fails, run: flake-monster restore --in-place');
+          console.error('If restoration fails, run: flake-monster restore');
         }
         console.error(`Error: ${err.message}`);
         process.exit(1);

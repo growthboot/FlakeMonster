@@ -105,11 +105,9 @@ export class InjectorEngine {
    * Remove all injections from files listed in the manifest.
    * @param {string} rootDir
    * @param {Manifest} manifest
-   * @param {Object} [options]
-   * @param {boolean} [options.recover] - Use text-based recovery mode for mangled files
    * @returns {Promise<{ filesRestored: number, injectionsRemoved: number }>}
    */
-  async restoreAll(rootDir, manifest, options = {}) {
+  async restoreAll(rootDir, manifest) {
     let filesRestored = 0;
     let injectionsRemoved = 0;
 
@@ -137,7 +135,7 @@ export class InjectorEngine {
         console.warn(`Warning: ${filePath} was modified after injection. Restoring anyway.`);
       }
 
-      const result = adapter.remove(source, { recover: options.recover });
+      const result = adapter.remove(source);
       await writeFile(absPath, result.source, 'utf-8');
       filesRestored++;
       injectionsRemoved += result.removedCount;

@@ -1,10 +1,10 @@
 # Workflows
 
-Real-world workflows for integrating Flake Monster into your development process — from browser-based test suites to automated coding agents.
+Real-world workflows for integrating FlakeMonster into your development process, from browser-based test suites to automated coding agents.
 
 ## Browser-Based Test Suites
 
-Flake Monster's source-to-source approach means the injected output is just plain JavaScript files. No Node loader hooks, no special runtime flags — any tool that can bundle or serve JS files can run them. This makes it work out of the box with browser-based test runners.
+FlakeMonster's source-to-source approach means the injected output is just plain JavaScript files. No Node loader hooks, no special runtime flags, any tool that can bundle or serve JS files can run them. This makes it work out of the box with browser-based test runners.
 
 ### Playwright
 
@@ -13,7 +13,7 @@ Flake Monster's source-to-source approach means the injected output is just plai
 flake-monster test --cmd "npx playwright test" "src/**/*.js"
 ```
 
-Playwright runs tests in real browser contexts. Because Flake Monster modifies the source files themselves, the delays survive bundling and execute in the browser just like any other `await`. The workspace symlinks your `node_modules`, so Playwright's config and browser binaries resolve normally.
+Playwright runs tests in real browser contexts. Because FlakeMonster modifies the source files themselves, the delays survive bundling and execute in the browser just like any other `await`. The workspace symlinks your `node_modules`, so Playwright's config and browser binaries resolve normally.
 
 For projects where Playwright needs specific config files:
 
@@ -39,11 +39,11 @@ For Cypress component tests, the workspace contains your full source tree with d
 flake-monster test --cmd "npx vitest run --browser" "src/**/*.js"
 ```
 
-Vitest browser mode uses Vite to serve test files to a real browser. The injected `await Flake.delay(...)` calls are standard ESM — Vite handles them transparently.
+Vitest browser mode uses Vite to serve test files to a real browser. The injected `await Flake.delay(...)` calls are standard ESM, Vite handles them transparently.
 
 ### Why This Works
 
-The `flake-monster.runtime.js` file is self-contained with zero Node dependencies. It uses only `setTimeout` and `Promise` — APIs available in every browser. When your bundler processes the injected import:
+The `flake-monster.runtime.js` file is self-contained with zero Node dependencies. It uses only `setTimeout` and `Promise`, APIs available in every browser. When your bundler processes the injected import:
 
 ```js
 import { Flake } from "../flake-monster.runtime.js";
@@ -55,13 +55,13 @@ It resolves and bundles it like any other module. No polyfills, no Node shims, n
 
 ## Coding Agent Workflows
 
-AI coding agents (Claude Code, OpenAI Codex, Cursor, etc.) write code and tests fast — but they have a blind spot: **timing assumptions**. An agent writes a test that passes on the first run and moves on. But the test might only pass because every async operation completes instantly in the test environment. The moment timing shifts in CI — different machine, different load, parallel test execution — the test starts flaking.
+AI coding agents (Claude Code, OpenAI Codex, Cursor, etc.) write code and tests fast, but they have a blind spot: **timing assumptions**. An agent writes a test that passes on the first run and moves on. But the test might only pass because every async operation completes instantly in the test environment. The moment timing shifts in CI, different machine, different load, parallel test execution, the test starts flaking.
 
-Flake Monster catches these before the agent's output gets merged.
+FlakeMonster catches these before the agent's output gets merged.
 
 ### Claude Code
 
-Run Flake Monster as a validation step after Claude Code writes or modifies async code:
+Run FlakeMonster as a validation step after Claude Code writes or modifies async code:
 
 ```bash
 # After Claude Code writes new tests
@@ -80,27 +80,27 @@ If any run fails, fix the race condition before moving on.
 The failing seed will reproduce the exact timing that caused the failure.
 ```
 
-This creates a feedback loop: the agent writes code, Flake Monster surfaces timing bugs, the agent fixes them — all in one session.
+This creates a feedback loop: the agent writes code, FlakeMonster surfaces timing bugs, the agent fixes them, all in one session.
 
 ### OpenAI Codex
 
-Codex runs in a sandboxed environment and executes tests as part of its workflow. Add Flake Monster to the verification step:
+Codex runs in a sandboxed environment and executes tests as part of its workflow. Add FlakeMonster to the verification step:
 
 ```bash
 # In your Codex task instructions
 npm test && flake-monster test --runs 5 --mode light --cmd "npm test"
 ```
 
-Using `--mode light` keeps overhead low (one delay per async function) while still catching the most common race conditions — missing `await`s and unguarded state mutations.
+Using `--mode light` keeps overhead low (one delay per async function) while still catching the most common race conditions, missing `await`s and unguarded state mutations.
 
 ### General Agent Integration Pattern
 
 The pattern works with any agent that can run shell commands:
 
-1. **Agent writes code** — new feature, bug fix, refactor
-2. **Agent runs normal tests** — confirms the basic logic works
-3. **Agent runs Flake Monster** — confirms the async timing is sound
-4. **If flakes found** — agent gets the failing seed and can debug deterministically
+1. **Agent writes code**, new feature, bug fix, refactor
+2. **Agent runs normal tests**, confirms the basic logic works
+3. **Agent runs FlakeMonster**, confirms the async timing is sound
+4. **If flakes found**, agent gets the failing seed and can debug deterministically
 
 ```bash
 # Step 2: Normal test pass
@@ -114,11 +114,11 @@ flake-monster test --runs 1 --seed <failing-seed> --cmd "npm test" --keep-on-fai
 # Inspect .flake-monster/workspaces/run-0-seed-<seed>/ to see where delays were injected
 ```
 
-The key insight: **agents don't experience flaky tests** because they run tests once and move on. Flake Monster forces multiple runs with varied timing, simulating the conditions where flakes actually surface.
+The key insight: **agents don't experience flaky tests** because they run tests once and move on. FlakeMonster forces multiple runs with varied timing, simulating the conditions where flakes actually surface.
 
 ### CI Gate for Agent-Generated PRs
 
-If agents open PRs autonomously, add Flake Monster as a CI check:
+If agents open PRs autonomously, add FlakeMonster as a CI check:
 
 ```yaml
 # .github/workflows/flake-check.yml
@@ -143,7 +143,7 @@ This catches flaky tests from both humans and agents before they hit the main br
 
 ## Debugging a Flaky Test
 
-When Flake Monster finds a failure, here's the workflow to track it down.
+When FlakeMonster finds a failure, here's the workflow to track it down.
 
 ### 1. Reproduce It
 
@@ -161,7 +161,7 @@ This recreates the same delay pattern that caused the failure. The `--keep-on-fa
 cat .flake-monster/workspaces/run-0-seed-48291/src/api/client.js
 ```
 
-You'll see `await Flake.delay(...)` calls between your statements. The delay that caused the failure is somewhere in there — it forced a yield at a point where your code assumed synchronous execution.
+You'll see `await Flake.delay(...)` calls between your statements. The delay that caused the failure is somewhere in there, it forced a yield at a point where your code assumed synchronous execution.
 
 ### 3. Switch to In-Place Mode
 
@@ -174,12 +174,12 @@ flake-monster inject --in-place --seed 48291 "src/**/*.js"
 # Now iterate: add console.logs, set breakpoints, run tests repeatedly
 npm test
 
-# The delays are pinned — your edits won't move them
+# The delays are pinned, your edits won't move them
 # When you've found and fixed the bug:
 flake-monster restore --in-place
 ```
 
-This is where the source-to-source approach pays off. The delays are real code in your files. You can add debugging statements, change assertions, comment out lines — and the delays stay exactly where they are. A runtime approach would re-inject on every run, so even adding a `console.log` could shift the delay positions and lose your repro.
+This is where the source-to-source approach pays off. The delays are real code in your files. You can add debugging statements, change assertions, comment out lines, and the delays stay exactly where they are. A runtime approach would re-inject on every run, so even adding a `console.log` could shift the delay positions and lose your repro.
 
 ### 4. Verify the Fix
 
@@ -239,11 +239,11 @@ flake-monster test \
 ```
 
 The combination of:
-- **50 runs** — more seeds, more timing variations
-- **`hardcore` mode** — delays between every statement
-- **Higher delays** (10–200ms) — amplifies timing differences
-- **Targeted glob** — only injects into the suspected module
-- **Filtered test command** — only runs relevant tests
+- **50 runs**, more seeds, more timing variations
+- **`hardcore` mode**, delays between every statement
+- **Higher delays** (10–200ms), amplifies timing differences
+- **Targeted glob**, only injects into the suspected module
+- **Filtered test command**, only runs relevant tests
 
 ...maximizes the chance of catching an intermittent race in that module without wasting time on unrelated code.
 

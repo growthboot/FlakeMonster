@@ -14,7 +14,8 @@ export function registerInjectCommand(program) {
     .argument('[globs...]', 'File patterns to process', ['src/**/*.js'])
     .option('-m, --mode <mode>', 'Injection density: light, medium, hardcore', 'medium')
     .option('-s, --seed <seed>', 'Random seed for deterministic delays (or "auto")', 'auto')
-    .option('--in-place', 'Modify files in-place instead of creating a workspace copy', false)
+    .option('--in-place', 'Modify files in-place (default)', true)
+    .option('--workspace', 'Create a workspace copy instead of modifying files in-place', false)
     .option('--min-delay <ms>', 'Minimum delay in milliseconds', '0')
     .option('--max-delay <ms>', 'Maximum delay in milliseconds', '50')
     .action(async (globs, options) => {
@@ -29,10 +30,11 @@ export function registerInjectCommand(program) {
         registry.register(createJavaScriptAdapter());
         const engine = new InjectorEngine(registry, profile);
 
+        const useWorkspace = options.workspace;
         let targetDir = projectRoot;
         let workspace = null;
 
-        if (!options.inPlace) {
+        if (useWorkspace) {
           workspace = new ProjectWorkspace({ sourceDir: projectRoot, runId: `inject-seed-${seed}` });
           await workspace.create();
           targetDir = workspace.root;
@@ -40,7 +42,7 @@ export function registerInjectCommand(program) {
         }
 
         const manifest = await engine.injectAll(targetDir, globs, seed);
-        const flakeDir = getFlakeMonsterDir(options.inPlace ? projectRoot : targetDir);
+        const flakeDir = getFlakeMonsterDir(useWorkspace ? targetDir : projectRoot);
         await manifest.save(flakeDir);
 
         const totalFiles = Object.keys(manifest.getFiles()).length;
@@ -49,7 +51,7 @@ export function registerInjectCommand(program) {
         console.log(`\nInjected ${totalInjections} delays into ${totalFiles} file(s)`);
         console.log(`Mode: ${profile.mode} | Seed: ${seed}`);
 
-        if (!options.inPlace) {
+        if (useWorkspace) {
           console.log(`\nWorkspace: ${workspace.root}`);
           console.log('Run your tests against the workspace, then clean up with:');
           console.log(`  flake-monster restore`);

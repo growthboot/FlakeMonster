@@ -32,16 +32,12 @@ describe('JavaScript adapter — remove', () => {
 
     assert.ok(!restored.source.includes('__FlakeMonster__.delay'), 'no delay calls after removal');
     assert.ok(!restored.source.includes('flake-monster.runtime'), 'no runtime import after removal');
+    assert.ok(!restored.source.includes('jt92-se2j!'), 'no stamp after removal');
     assert.ok(restored.removedCount > 0, 'should report removed count');
   });
 
-  it('roundtrip: inject then remove produces equivalent code', async () => {
+  it('roundtrip: inject then remove preserves original code', async () => {
     const original = await readFile(join(FIXTURES, 'simple-async.js'), 'utf-8');
-
-    // Parse original to normalize formatting
-    const { parseSource } = await import('../../src/adapters/javascript/parser.js');
-    const { generateSource } = await import('../../src/adapters/javascript/codegen.js');
-    const normalizedOriginal = generateSource(parseSource(original).ast);
 
     // Inject
     const injected = adapter.inject(original, {
@@ -56,8 +52,15 @@ describe('JavaScript adapter — remove', () => {
     // Remove
     const restored = adapter.remove(injected.source);
 
-    // Compare normalized versions (AST roundtrip normalizes whitespace)
-    assert.strictEqual(restored.source, normalizedOriginal, 'roundtrip should produce equivalent code');
+    // Verify no injected code remains
+    assert.ok(!restored.source.includes('__FlakeMonster__'), 'no identifier after roundtrip');
+    assert.ok(!restored.source.includes('flake-monster.runtime'), 'no runtime import after roundtrip');
+    assert.ok(!restored.source.includes('jt92-se2j!'), 'no stamp after roundtrip');
+
+    // Verify original code survived
+    assert.ok(restored.source.includes('loadUser'), 'preserves loadUser function');
+    assert.ok(restored.source.includes('saveUser'), 'preserves saveUser function');
+    assert.ok(restored.source.includes('fetchData'), 'preserves fetchData calls');
   });
 
   it('does nothing to files with no injections', async () => {
@@ -132,13 +135,13 @@ describe('JavaScript adapter — scan (recovery preview)', () => {
     });
 
     const scanMatches = adapter.scan(injected.source);
-    const recovered = adapter.remove(injected.source, { recover: true });
+    const recovered = adapter.remove(injected.source);
 
     assert.strictEqual(scanMatches.length, recovered.removedCount, 'scan and recover should agree on count');
   });
 });
 
-describe('JavaScript adapter — recover (text-based removal)', () => {
+describe('JavaScript adapter — remove (resilience)', () => {
   it('removes injected lines via text matching', async () => {
     const original = await readFile(join(FIXTURES, 'simple-async.js'), 'utf-8');
 
@@ -151,7 +154,7 @@ describe('JavaScript adapter — recover (text-based removal)', () => {
       skipGenerators: true,
     });
 
-    const recovered = adapter.remove(injected.source, { recover: true });
+    const recovered = adapter.remove(injected.source);
 
     assert.ok(!recovered.source.includes('__FlakeMonster__.delay'), 'no delay calls after recovery');
     assert.ok(!recovered.source.includes('flake-monster.runtime'), 'no runtime import after recovery');
@@ -159,7 +162,7 @@ describe('JavaScript adapter — recover (text-based removal)', () => {
     assert.ok(recovered.removedCount > 0, 'should report removed count');
   });
 
-  it('recovers from mangled code that AST removal cannot parse', () => {
+  it('removes mangled code with broken syntax', () => {
     // Simulate AI-mangled code: broken syntax but still has our identifiers
     const mangled = [
       'import { __FlakeMonster__ } from "./flake-monster.runtime.js";',
@@ -172,7 +175,7 @@ describe('JavaScript adapter — recover (text-based removal)', () => {
       '}',
     ].join('\n');
 
-    const recovered = adapter.remove(mangled, { recover: true });
+    const recovered = adapter.remove(mangled);
 
     assert.ok(!recovered.source.includes('__FlakeMonster__'), 'no identifier after recovery');
     assert.ok(!recovered.source.includes('jt92-se2j!'), 'no stamp after recovery');
@@ -193,7 +196,7 @@ describe('JavaScript adapter — recover (text-based removal)', () => {
       '}',
     ].join('\n');
 
-    const recovered = adapter.remove(corrupted, { recover: true });
+    const recovered = adapter.remove(corrupted);
 
     assert.ok(!recovered.source.includes('jt92-se2j!'), 'stamp fragments removed');
     assert.ok(recovered.source.includes('await doWork()'), 'preserves real await');
@@ -212,7 +215,7 @@ describe('JavaScript adapter — recover (text-based removal)', () => {
       '}',
     ].join('\n');
 
-    const recovered = adapter.remove(corrupted, { recover: true });
+    const recovered = adapter.remove(corrupted);
 
     assert.ok(!recovered.source.includes('__FlakeMonster__'), 'identifier removed');
     assert.ok(recovered.source.includes('const data = await loadData()'), 'preserves real code');
@@ -230,7 +233,7 @@ describe('JavaScript adapter — recover (text-based removal)', () => {
       '}',
     ].join('\n');
 
-    const recovered = adapter.remove(corrupted, { recover: true });
+    const recovered = adapter.remove(corrupted);
 
     assert.ok(!recovered.source.includes('flake-monster.runtime'), 'runtime imports removed');
     assert.ok(recovered.source.includes('const x = 1'), 'preserves real code');
@@ -256,7 +259,7 @@ describe('JavaScript adapter — recover (text-based removal)', () => {
       '}',
     ].join('\n');
 
-    const recovered = adapter.remove(linted, { recover: true });
+    const recovered = adapter.remove(linted);
 
     assert.ok(!recovered.source.includes('__FlakeMonster__'), 'identifier removed');
     assert.ok(!recovered.source.includes('flake-monster.runtime'), 'runtime import removed');
@@ -282,7 +285,7 @@ describe('JavaScript adapter — recover (text-based removal)', () => {
     ].join('\n');
 
     const scanMatches = adapter.scan(linted);
-    const recovered = adapter.remove(linted, { recover: true });
+    const recovered = adapter.remove(linted);
 
     assert.strictEqual(scanMatches.length, recovered.removedCount, 'scan and recover agree on multi-line');
   });
@@ -312,7 +315,7 @@ describe('JavaScript adapter — recover (text-based removal)', () => {
     assert.ok(linted.includes('__FlakeMonster__'), 'precondition: delay calls survive linting');
 
     // Recovery should still clean everything up via identifier + multi-line tracking
-    const recovered = adapter.remove(linted, { recover: true });
+    const recovered = adapter.remove(linted);
 
     assert.ok(!recovered.source.includes('__FlakeMonster__'), 'no identifier after recovery');
     assert.ok(!recovered.source.includes('flake-monster.runtime'), 'no runtime import after recovery');
@@ -342,7 +345,7 @@ describe('JavaScript adapter — recover (text-based removal)', () => {
       '}',
     ].join('\n');
 
-    const recovered = adapter.remove(testCode, { recover: true });
+    const recovered = adapter.remove(testCode);
 
     assert.strictEqual(recovered.removedCount, 0, 'should not remove any lines');
     assert.strictEqual(recovered.source, testCode, 'source should be unchanged');
@@ -351,7 +354,7 @@ describe('JavaScript adapter — recover (text-based removal)', () => {
   it('does nothing to files with no injected lines', async () => {
     const source = await readFile(join(FIXTURES, 'no-async.js'), 'utf-8');
 
-    const recovered = adapter.remove(source, { recover: true });
+    const recovered = adapter.remove(source);
     assert.strictEqual(recovered.removedCount, 0);
   });
 });

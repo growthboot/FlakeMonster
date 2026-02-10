@@ -1,23 +1,22 @@
-# Flake Monster
+# FlakeMonster
 
-A source-to-source test hardener that finds flaky tests by injecting async delays into your code. It intentionally makes timing worse so race conditions surface *before* they hit production — then gives you a seed to reproduce the exact failure every time.
+A source-to-source test hardener that finds flaky tests by injecting async delays into your code. It intentionally makes timing worse so race conditions surface *before* they hit production, then gives you a seed to reproduce the exact failure every time.
 
 ## Why
 
-Automated tests run fast — unrealistically fast. API calls resolve instantly against local mocks, database queries return in microseconds, and every async operation completes in the exact same order every time. In production, none of that is true. Network latency varies, services respond unpredictably, and users interact at human speed. Tests that pass in this perfectly-timed environment can hide real bugs — race conditions, missing `await`s, unguarded state mutations — that only surface when timing shifts even slightly.
+Automated tests run unrealistically fast. API calls resolve instantly against local mocks, database queries return in microseconds, commands are fired fasters than you can blink and eye, and every async operation completes in the exact same order every time. In production, none of that is true. Network latency varies, services respond unpredictably, computer performance varies, devices glitch, and users interact at human speed. Tests that pass in this perfectly-timed environment can hide real bugs, race conditions, missing `await`s, and unguarded state mutations, that only surface when timing shifts even slightly.
 
-Flake Monster closes that gap. It **deliberately injects async delays** between statements in your `async` functions, forcing the event loop to yield where it normally wouldn't. This mimics the kind of timing variation you get from network jitter, slow database responses, and concurrent user actions. Tests that depend on everything happening in a precise order will start failing — and that's the point. A test that only passes because it runs too fast to trigger its own race condition **should not be passing**.
+FlakeMonster closes that gap. It **deliberately injects async delays** between statements in your `async` functions, forcing the event loop to yield where it normally wouldn't. Tests that depend on everything happening in a precise order will start failing, and that's the point. A test that only passes because it runs too fast to trigger its own race condition **should not be passing**.
 
-The goal isn't to slow your tests down permanently. It's to find out which ones are lying to you right now, before they start failing randomly in CI at 2 AM. The goal is to increasing flake likelyhood so that you can catch the test flakes on your first tests. 
+The goal isn't to slow your tests down. The goal is to increasing flake likelyhood random timing glitches so that you can catch the test flakes on your first tests.
 
 Every run uses a **deterministic seed**, so when a test fails you get output like:
 
 ```
 Run 7/10 FAIL (seed=48291)
-  Workspace kept: .flake-monster/workspaces/run-7-seed-48291
 ```
 
-Re-run with that seed and you'll get the same failure every time.
+Re-run with that seed and you'll get the same failure every time. You can inject the delays, leave them there while you fix the issues, then remove them when you're done.
 
 ## Install
 
@@ -36,40 +35,40 @@ Find flaky tests in 30 seconds:
 npx flake-monster test --cmd "npm test"
 ```
 
-That's it. Flake Monster will:
-1. Copy your project to a temporary workspace (your source is never modified)
-2. Parse your JS files and inject `await` delays between statements in async functions
-3. Run your tests against the modified code
-4. Repeat with a different seed each run
+That's it. FlakeMonster will:
+1. Inject `await` delays between statements in async functions directly in your source files
+2. Run your tests against the modified code
+3. Repeat with a different seed each run
+4. Restore your files to their original state
 5. Report which runs failed and the seeds to reproduce them
 
 ## Use Cases
 
-**Validate AI-generated code** — Coding agents like Claude Code and Codex write tests that pass once and move on. Have the agent run tests through Flake Monster instead to catch missing `await`s and state races that a normal test run misses because it executes too fast and predictably.
+**Validate AI-generated code**, Coding agents like Claude Code and Codex write tests that pass once and move on. Have the agent run tests through FlakeMonster instead to catch missing `await`s and state races that a normal test run misses because it executes too fast and predictably.
 
 ```bash
 # After an agent writes async code, verify it isn't flaky
 flake-monster test --runs 5 --cmd "npm test"
 ```
 
-**Browser-based test suites** — Works with Playwright, Cypress, Vitest browser mode — anything that bundles or serves JS. No Node loader hooks, no plugins, no configuration.
+**Browser-based test suites**, Works with Playwright, Cypress, Vitest browser mode, anything that bundles or serves JS. No Node loader hooks, no plugins, no configuration.
 
 ```bash
 flake-monster test --cmd "npx playwright test" "src/**/*.js"
 ```
 
-**CI flake gate** — Block merges that introduce flaky tests.
+**CI flake gate**, Block merges that introduce flaky tests.
 
 ```bash
 flake-monster test --runs 10 --cmd "npm test"
 ```
 
-**Reproduce and debug** — Every failure comes with a seed. Inject in-place, debug freely, delays stay pinned while you edit around them.
+**Reproduce and debug**, Every failure comes with a seed. Inject delays, debug freely, delays stay pinned while you edit around them.
 
 ```bash
-flake-monster inject --in-place --seed 48291 "src/**/*.js"
-# add console.logs, set breakpoints, iterate — delays don't move
-flake-monster restore --in-place
+flake-monster inject --seed 48291 "src/**/*.js"
+# add console.logs, set breakpoints, iterate, delays don't move
+flake-monster restore
 ```
 
 See [Workflows](WORKFLOWS.md) for full details on each.
@@ -81,10 +80,10 @@ See [Workflows](WORKFLOWS.md) for full details on each.
 The main command. Runs your tests multiple times with different delay patterns to surface flakes.
 
 ```bash
-# Basic — 10 runs, medium density
+# Basic, 10 runs, medium density
 flake-monster test --cmd "npm test"
 
-# More aggressive — 20 runs, maximum delay injection
+# More aggressive, 20 runs, maximum delay injection
 flake-monster test --runs 20 --mode hardcore --cmd "npm test"
 
 # Target specific files
@@ -93,11 +92,8 @@ flake-monster test --cmd "npm test" "src/api/**/*.js" "src/services/**/*.js"
 # Reproduce a specific failure
 flake-monster test --runs 1 --seed 48291 --cmd "npm test"
 
-# Keep failed workspaces so you can inspect the injected code
-flake-monster test --cmd "npm test" --keep-on-fail
-
-# Inject directly into your source files (no workspace copy)
-flake-monster test --in-place --cmd "npm test"
+# Use workspace copies instead of modifying source files directly
+flake-monster test --workspace --cmd "npm test" --keep-on-fail
 ```
 
 | Option | Default | Description |
@@ -106,9 +102,10 @@ flake-monster test --in-place --cmd "npm test"
 | `-m, --mode <mode>` | `medium` | Injection density: `light`, `medium`, `hardcore` |
 | `-s, --seed <seed>` | `auto` | Base seed (`auto` generates one randomly) |
 | `-c, --cmd <command>` | `npm test` | Test command to execute |
-| `--in-place` | `false` | Modify source files directly instead of using workspace copies |
-| `--keep-on-fail` | `false` | Keep workspace on failure for inspection |
-| `--keep-all` | `false` | Keep all workspaces |
+| `--in-place` | `true` | Modify source files directly (default) |
+| `--workspace` | `false` | Use workspace copies instead of modifying source files |
+| `--keep-on-fail` | `false` | Keep workspace on failure for inspection (workspace mode only) |
+| `--keep-all` | `false` | Keep all workspaces (workspace mode only) |
 | `--min-delay <ms>` | `0` | Minimum delay in milliseconds |
 | `--max-delay <ms>` | `50` | Maximum delay in milliseconds |
 
@@ -117,21 +114,21 @@ flake-monster test --in-place --cmd "npm test"
 Inject delays without running tests. Useful for manual inspection or running tests yourself.
 
 ```bash
-# Inject into a workspace copy (safe — doesn't touch your code)
+# Inject in-place (default)
 flake-monster inject "src/**/*.js"
 
-# Inject in-place (modifies your actual files — use with version control)
-flake-monster inject --in-place "src/**/*.js"
+# Inject into a workspace copy instead
+flake-monster inject --workspace "src/**/*.js"
 ```
 
 ### `flake-monster restore`
 
-Remove all injected delays and restore original source. Only needed after `--in-place` injection.
+Remove all injected delays and restore original source.
 
 ```bash
-flake-monster restore --in-place
+flake-monster restore
 
-# Recovery mode — scans for injected lines, shows matches, asks before removing
+# Recovery mode: interactive scan and confirm, use when traces remain after a normal restore
 flake-monster restore --recover
 ```
 
@@ -139,9 +136,9 @@ flake-monster restore --recover
 
 Modes control how many delays get injected:
 
-- **`light`** — One delay at the top of each async function. Good for a quick sanity check.
-- **`medium`** — Delays between statements, skipping before `return`/`throw`. The default — catches most race conditions without being overwhelming.
-- **`hardcore`** — Delays between nearly every statement. Maximum chaos. Use this when medium isn't surfacing a suspected flake.
+- **`light`**, One delay at the top of each async function. Good for a quick sanity check.
+- **`medium`**, Delays between statements, skipping before `return`/`throw`. The default, catches most race conditions without being overwhelming.
+- **`hardcore`**, Delays between nearly every statement. Maximum chaos. Use this when medium isn't surfacing a suspected flake.
 
 ## What Gets Injected
 
@@ -155,7 +152,7 @@ async function loadUser(id) {
 }
 ```
 
-Flake Monster (in `medium` mode) produces something like:
+FlakeMonster (in `medium` mode) produces something like:
 
 ```js
 import { __FlakeMonster__ } from "./flake-monster.runtime.js";
@@ -196,35 +193,37 @@ CLI flags override config file values.
 
 ## How It Works
 
-1. **Parsing** — Source files are parsed into an AST using [Acorn](https://github.com/acornjs/acorn)
-2. **Injection** — `await Flake.delay(...)` statements are inserted at statement boundaries inside async function bodies, with marker comments for tracking
-3. **Determinism** — Delay durations are derived from `seed + file + function + position`, so the same seed always produces the same delays
-4. **Removal** — Injected code is removed via AST matching (not text search), so it never accidentally deletes your own code
-5. **Workspace isolation** — By default, injection happens on a copy of your project, not your working tree
+1. **Parsing**, Source files are parsed into an AST using [Acorn](https://github.com/acornjs/acorn)
+2. **Injection**, `await __FlakeMonster__.delay(...)` statements are inserted at statement boundaries inside async function bodies, with marker comments for tracking
+3. **Determinism**, Delay durations are derived from `seed + file + function + position`, so the same seed always produces the same delays
+4. **Removal**, Injected code is removed via text-based pattern matching on the unique stamp (`jt92-se2j!`) and the `__FlakeMonster__` identifier, so it works even after linters, formatters, or AI tools have modified the injected code
+5. **In-place by default**, Injection happens directly in your source files so you can debug freely. Use `--workspace` for isolated copies if preferred
 
 ## Why Source-to-Source (Not Runtime Hooks)
 
-You might wonder why Flake Monster rewrites files on disk instead of hooking into Node's module loader at runtime. Three reasons:
+You might wonder why FlakeMonster rewrites files on disk instead of hooking into Node's module loader at runtime. 
 
-1. **Stable debugging surface** — When a flaky test surfaces, you need to debug it. The injected delays are real code in real files, so you can add `console.log`s, tweak assertions, and iterate freely — the delays stay exactly where they are. A runtime loader would re-inject from scratch on every run, meaning any edit to the file (even adding a log line) shifts injection points and your repro vanishes.
+Three reasons:
 
-2. **Works in the browser** — Not all test suites run in Node. If you're testing with Playwright, Cypress, Vitest browser mode, or anything that executes in a real browser, a Node loader hook is useless. Source-to-source output is just plain JS files — any bundler, dev server, or browser can run them without special integration.
+1. **Stable debugging surface**, When a flaky test surfaces, you need to debug it. The injected delays are real code in real files, so you can add `console.log`s, tweak assertions, and iterate freely, the delays stay exactly where they are. A runtime loader would re-inject from scratch on every run, meaning any edit to the file (even adding a log line) shifts injection points and your repro vanishes.
 
-3. **Language agnostic** — The core engine knows nothing about JavaScript. Adapters handle parsing and injection per language, and the same workspace/seed/reporting machinery works for all of them. A runtime approach would marry the tool to Node's module system permanently.
+2. **Works in the browser**, Not all test suites run in Node. If you're testing with Playwright, Cypress, Vitest browser mode, or anything that executes in a real browser, a Node loader hook is useless. Source-to-source output is just plain JS files, any bundler, dev server, or browser can run them without special integration.
+
+3. **Language agnostic**, The core engine knows nothing about JavaScript. Adapters handle parsing and injection per language, and the same workspace/seed/reporting machinery works for all of them. A runtime approach would marry the tool to Node's module system permanently.
 
 ## Safety
 
-- **AST-based removal** guarantees only injected code gets removed, even if your code happens to look similar
+- **Unique identifiers**, Injected code uses `__FlakeMonster__` and a stamp (`jt92-se2j!`) that are unmistakable, making false-positive removal essentially impossible
+- **Text-based removal** matches on these unique identifiers, so it works reliably even after linters, formatters, or AI tools rewrite the injected code
 - **Deterministic seeds** mean every failure is reproducible
 - Automatically excludes `node_modules`, `dist`, and `build` directories
-- **Unique identifiers** — Injected code uses `__FlakeMonster__` and a stamp (`jt92-se2j!`) that are unmistakable, making false-positive removal essentially impossible
-- **Recovery mode** — If something (like an AI coding assistant) modifies the injected lines, `--recover` scans for the stamp and identifier, shows you exactly what it found, and asks for confirmation before removing anything
+- **Recovery mode**, If traces of injected code remain after a normal restore, `--recover` scans for the stamp and identifier, shows you exactly what it found, and asks for confirmation before removing anything
 
 ## Recovery Mode
 
-Normal restore uses strict AST matching to remove injected code. But if an AI assistant or manual edit has changed the injected lines enough to break the AST structure, normal restore won't find them.
+Normal restore removes injected code automatically using text-based pattern matching. In rare cases, if some traces of injected code remain after a normal restore, recovery mode lets you interactively inspect and confirm what gets removed.
 
-Recovery mode uses text-based matching instead — it looks for the `jt92-se2j!` stamp, the `__FlakeMonster__` identifier, and the runtime import. It shows you every match before doing anything:
+Recovery mode scans for the `jt92-se2j!` stamp, the `__FlakeMonster__` identifier, and the runtime import. It shows you every match before doing anything:
 
 ```
 $ flake-monster restore --recover
