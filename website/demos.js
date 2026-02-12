@@ -508,7 +508,7 @@ function initCodeDemo() {
       const injNum = String(i + 1).padStart(2);
 
       if (injectedLines.has(i + 1)) {
-        leftHtml += `<div class="code-line line-spacer"></div>`;
+        leftHtml += `<div class="code-line line-spacer">&nbsp;</div>`;
         rightHtml += `<div class="code-line line-added"><span class="line-num">${injNum}</span><span class="line-gutter">+</span>${injLines[i]}</div>`;
       } else {
         const origNum = String(origIdx + 1).padStart(2);

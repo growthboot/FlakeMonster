@@ -522,7 +522,6 @@ section > p > a {
 /* Diff: spacer rows (left panel, aligned with additions) */
 .code-line.line-spacer {
   background: rgba(108, 112, 134, 0.06);
-  min-height: 26.4px;
 }
 
 /* Code demo: fixed-height scrollable panels */
