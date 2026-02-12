@@ -47,7 +47,7 @@ export function registerRestoreCommand(program) {
     .command('restore')
     .description('Remove all injected delays and restore original source')
     .option('--in-place', 'Restore in-place modified files (default)', true)
-    .option('--recover', 'Interactive scan and confirm — use when traces of injected code remain after a normal restore', false)
+    .option('--recover', 'Interactive scan and confirm, use when traces of injected code remain after a normal restore', false)
     .option('--dir <path>', 'Directory to restore (defaults to project root)')
     .action(async (options) => {
       try {

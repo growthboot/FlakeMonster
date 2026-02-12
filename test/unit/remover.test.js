@@ -10,7 +10,7 @@ const FIXTURES = join(__dirname, '..', 'fixtures');
 
 const adapter = createJavaScriptAdapter();
 
-describe('JavaScript adapter — remove', () => {
+describe('JavaScript adapter, remove', () => {
   it('removes all injected delays and runtime import', async () => {
     const original = await readFile(join(FIXTURES, 'simple-async.js'), 'utf-8');
 
@@ -24,13 +24,13 @@ describe('JavaScript adapter — remove', () => {
       skipGenerators: true,
     });
 
-    assert.ok(injected.source.includes('__FlakeMonster__.delay'), 'precondition: has delays');
+    assert.ok(injected.source.includes('__FlakeMonster__('), 'precondition: has delays');
     assert.ok(injected.source.includes('flake-monster.runtime'), 'precondition: has import');
 
     // Now remove
     const restored = adapter.remove(injected.source);
 
-    assert.ok(!restored.source.includes('__FlakeMonster__.delay'), 'no delay calls after removal');
+    assert.ok(!restored.source.includes('__FlakeMonster__('), 'no delay calls after removal');
     assert.ok(!restored.source.includes('flake-monster.runtime'), 'no runtime import after removal');
     assert.ok(!restored.source.includes('jt92-se2j!'), 'no stamp after removal');
     assert.ok(restored.removedCount > 0, 'should report removed count');
@@ -63,6 +63,32 @@ describe('JavaScript adapter — remove', () => {
     assert.ok(restored.source.includes('fetchData'), 'preserves fetchData calls');
   });
 
+  it('roundtrip: inject then remove preserves top-level await code', async () => {
+    const original = await readFile(join(FIXTURES, 'top-level-await.js'), 'utf-8');
+
+    const injected = adapter.inject(original, {
+      filePath: 'test/fixtures/top-level-await.js',
+      mode: 'medium',
+      seed: 42,
+      delayConfig: { minMs: 0, maxMs: 50, distribution: 'uniform' },
+      skipTryCatch: false,
+      skipGenerators: true,
+    });
+
+    assert.ok(injected.source.includes('__FlakeMonster__('), 'precondition: has delays');
+
+    const restored = adapter.remove(injected.source);
+
+    assert.ok(!restored.source.includes('__FlakeMonster__'), 'no identifier after roundtrip');
+    assert.ok(!restored.source.includes('flake-monster.runtime'), 'no runtime import after roundtrip');
+    assert.ok(!restored.source.includes('jt92-se2j!'), 'no stamp after roundtrip');
+
+    // Verify original code survived
+    assert.ok(restored.source.includes('fetchData'), 'preserves fetchData calls');
+    assert.ok(restored.source.includes('config'), 'preserves config');
+    assert.ok(restored.source.includes('console.log'), 'preserves console.log');
+  });
+
   it('does nothing to files with no injections', async () => {
     const source = await readFile(join(FIXTURES, 'no-async.js'), 'utf-8');
 
@@ -71,7 +97,7 @@ describe('JavaScript adapter — remove', () => {
   });
 });
 
-describe('JavaScript adapter — scan (recovery preview)', () => {
+describe('JavaScript adapter, scan (recovery preview)', () => {
   it('finds injected lines without modifying source', async () => {
     const original = await readFile(join(FIXTURES, 'simple-async.js'), 'utf-8');
 
@@ -141,7 +167,7 @@ describe('JavaScript adapter — scan (recovery preview)', () => {
   });
 });
 
-describe('JavaScript adapter — remove (resilience)', () => {
+describe('JavaScript adapter, remove (resilience)', () => {
   it('removes injected lines via text matching', async () => {
     const original = await readFile(join(FIXTURES, 'simple-async.js'), 'utf-8');
 
@@ -156,7 +182,7 @@ describe('JavaScript adapter — remove (resilience)', () => {
 
     const recovered = adapter.remove(injected.source);
 
-    assert.ok(!recovered.source.includes('__FlakeMonster__.delay'), 'no delay calls after recovery');
+    assert.ok(!recovered.source.includes('__FlakeMonster__('), 'no delay calls after recovery');
     assert.ok(!recovered.source.includes('flake-monster.runtime'), 'no runtime import after recovery');
     assert.ok(!recovered.source.includes('jt92-se2j!'), 'no stamp after recovery');
     assert.ok(recovered.removedCount > 0, 'should report removed count');
@@ -167,8 +193,8 @@ describe('JavaScript adapter — remove (resilience)', () => {
     const mangled = [
       'import { __FlakeMonster__ } from "./flake-monster.runtime.js";',
       'async function foo() {',
-      '  /* @flake-monster[jt92-se2j!] v1 id=abc seed=42 mode=hardcore */',
-      '  await __FlakeMonster__.delay({ seed: 42, file: "x.js", fn: "foo", n: 0 })',  // missing semicolon
+      '  /* @flake-monster[jt92-se2j!] v1 */',
+      '  await __FlakeMonster__(23)',  // missing semicolon
       '  const x = await fetch("/api");',
       '  /* some mangled comment jt92-se2j! leftover */',
       '  return x;',
@@ -205,11 +231,11 @@ describe('JavaScript adapter — remove (resilience)', () => {
   });
 
   it('recovers when AI reformats delay call but identifier survives', () => {
-    // AI split or reformatted the delay call, but it's all on one line with await + identifier
+    // AI reformatted the delay call, but it's all on one line with await + identifier
     const corrupted = [
       'async function baz() {',
-      '  await __FlakeMonster__.delay({seed:42,file:"f.js",fn:"baz",n:0});  // added for test flakiness',
-      '  await __FlakeMonster__ . delay( { seed: 42, file: "f.js" , fn: "baz", n: 1 } )',
+      '  await __FlakeMonster__(23);  // added for test flakiness',
+      '  await __FlakeMonster__ ( 47 )',
       '  const data = await loadData();',
       '  return data;',
       '}',
@@ -240,20 +266,14 @@ describe('JavaScript adapter — remove (resilience)', () => {
     assert.strictEqual(recovered.removedCount, 2, 'removes both mangled import lines');
   });
 
-  it('recovers when linter strips all comments and reformats delay calls', () => {
-    // Linter removed all block comments (no stamp left) and reformatted
-    // the delay call across multiple lines
+  it('recovers when linter strips all comments (stamp-free, single-line calls)', () => {
+    // Linter removed all block comments (no stamp left) but calls remain
     const linted = [
       'import { __FlakeMonster__ } from "./flake-monster.runtime.js";',
       'import { fetchData } from "./api.js";',
       '',
       'async function loadUser(id) {',
-      '  await __FlakeMonster__.delay({',
-      '    seed: 42,',
-      '    file: "src/user.js",',
-      '    fn: "loadUser",',
-      '    n: 0,',
-      '  });',
+      '  await __FlakeMonster__(23);',
       '  const user = await fetchData(`/users/${id}`);',
       '  return user;',
       '}',
@@ -263,23 +283,17 @@ describe('JavaScript adapter — remove (resilience)', () => {
 
     assert.ok(!recovered.source.includes('__FlakeMonster__'), 'identifier removed');
     assert.ok(!recovered.source.includes('flake-monster.runtime'), 'runtime import removed');
-    assert.ok(!recovered.source.includes('seed: 42'), 'no orphaned object properties');
     assert.ok(recovered.source.includes('const user = await fetchData'), 'preserves real code');
     assert.ok(recovered.source.includes('return user;'), 'preserves return');
-    // import(1) + delay call across 6 lines (await...delay({ through });)
-    assert.strictEqual(recovered.removedCount, 7, 'removes import + entire multi-line delay call');
+    // import(1) + delay call(1) = 2 lines
+    assert.strictEqual(recovered.removedCount, 2, 'removes import + delay call');
   });
 
-  it('recovers multi-line delay with scan/recover count agreement', () => {
+  it('recovers with scan/recover count agreement', () => {
     const linted = [
       'import { __FlakeMonster__ } from "./flake-monster.runtime.js";',
       'async function foo() {',
-      '  await __FlakeMonster__.delay({',
-      '    seed: 1,',
-      '    file: "a.js",',
-      '    fn: "foo",',
-      '    n: 0,',
-      '  });',
+      '  await __FlakeMonster__(23);',
       '  return true;',
       '}',
     ].join('\n');
@@ -287,7 +301,7 @@ describe('JavaScript adapter — remove (resilience)', () => {
     const scanMatches = adapter.scan(linted);
     const recovered = adapter.remove(linted);
 
-    assert.strictEqual(scanMatches.length, recovered.removedCount, 'scan and recover agree on multi-line');
+    assert.strictEqual(scanMatches.length, recovered.removedCount, 'scan and recover agree');
   });
 
   it('end-to-end: inject real code, strip all block comments (simulate lint), recover', async () => {
@@ -314,7 +328,7 @@ describe('JavaScript adapter — remove (resilience)', () => {
     assert.ok(!linted.includes('jt92-se2j!'), 'precondition: linting removed all stamps');
     assert.ok(linted.includes('__FlakeMonster__'), 'precondition: delay calls survive linting');
 
-    // Recovery should still clean everything up via identifier + multi-line tracking
+    // Recovery should still clean everything up via identifier matching
     const recovered = adapter.remove(linted);
 
     assert.ok(!recovered.source.includes('__FlakeMonster__'), 'no identifier after recovery');
@@ -329,7 +343,7 @@ describe('JavaScript adapter — remove (resilience)', () => {
     assert.ok(recovered.source.includes("console.log('saved')"), 'preserves console.log');
   });
 
-  it('does not false-positive on code that references __FlakeMonster__ without calling .delay()', () => {
+  it('does not false-positive on code that references __FlakeMonster__ without calling it', () => {
     // Test/assertion code that mentions the identifier in strings, args, or comments
     const testCode = [
       'import { strict as assert } from "node:assert";',

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>FlakeMonster — Surface flaky tests with deterministic delays</title>
+  <title>FlakeMonster, Surface flaky tests with deterministic delays</title>
   <link rel="icon" type="image/svg+xml" href="website/logo.svg">
   <link rel="stylesheet" href="website/styles.css">
 
@@ -18,40 +18,228 @@
   }
   </script>
 
+  <script>
+    (function() {
+      var t = localStorage.getItem('theme');
+      if (!t) t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-theme', t);
+      document.addEventListener('DOMContentLoaded', function() {
+        document.querySelectorAll('[data-theme-toggle]').forEach(function(btn) {
+          btn.addEventListener('click', function() {
+            var next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', next);
+            localStorage.setItem('theme', next);
+          });
+        });
+      });
+    })();
+  </script>
   <script type="module" src="website/demos.js"></script>
 </head>
 <body>
 
-  <!-- Header -->
-  <header>
-    <img src="website/logo.svg" alt="FlakeMonster logo" class="logo">
-    <h1>FlakeMonster</h1>
-    <p class="tagline">Surface flaky tests by injecting deterministic async delays</p>
-    <nav>
-      <a href="#jitter-demo">Jitter</a>
-      <a href="#code-demo">Injection</a>
-      <a href="#seed-demo">Seeds</a>
-      <a href="https://github.com/andrewdear/flake-monster">GitHub</a>
-    </nav>
-  </header>
+  <!-- Top Nav -->
+  <nav class="top-nav">
+    <div class="top-nav-inner">
+      <a href="#" class="nav-brand">FlakeMonster</a>
+      <div class="nav-links">
+        <a href="#pipeline-demo">How It Works</a>
+        <a href="#jitter-demo">Jitter</a>
+        <a href="#code-demo">Injection</a>
+        <a href="#seed-demo">Seeds</a>
+        <a href="#ci-section">CI</a>
+        <a href="#pricing-section">Pricing</a>
+        <a href="https://github.com/andrewdear/flake-monster">GitHub</a>
+        <button class="theme-toggle" data-theme-toggle aria-label="Toggle dark mode"></button>
+      </div>
+    </div>
+  </nav>
 
   <!-- Hero -->
   <section id="hero">
-    <p>
-      Your tests run too fast. API calls resolve instantly, every async operation
-      completes in the same order, and race conditions hide. FlakeMonster injects
-      <code>await</code> delays between statements in async functions, forcing the
-      event loop to yield where it normally wouldn't. Same seed, same delays. Every time.
-    </p>
+    <div class="hero-content">
+      <img src="website/logo.svg" alt="FlakeMonster logo" class="hero-logo">
+      <h1>FlakeMonster</h1>
+      <p class="tagline">Surface flaky tests by injecting deterministic async delays</p>
+      <p class="hero-desc">
+        <b>░&nbsp;&nbsp;Your test ran too fast and left a bug behind.</b>
+      </p>
+      <p class="hero-desc">
+        <b>░&nbsp;&nbsp;Your test flaked!</b>
+      </p>
+      <p class="hero-desc">In your development environment:</p>
+      <ul class="hero-list">
+        <li>calls resolve instantly</li>
+        <li>async operations happen in sync</li>
+        <li>and race conditions hide</li>
+      </ul>
+        That's why your tests are flaking.</p>
+      <p class="hero-desc">
+        Inject <code>await</code> delays between statements to surface bugs.</p>
+      </p>
+    </div>
+    <div class="hero-scene">
+      <svg class="hero-svg" viewBox="0 0 480 300" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <filter id="bolt-blur"><feGaussianBlur stdDeviation="4"/></filter>
+          <radialGradient id="bugSheen" cx="35%" cy="35%">
+            <stop offset="0%" stop-color="#A0522D" stop-opacity="0.4"/>
+            <stop offset="100%" stop-color="#7B3F00" stop-opacity="0"/>
+          </radialGradient>
+          <radialGradient id="heroBodyGrad" cx="45%" cy="40%">
+            <stop offset="0%" stop-color="#5cd87a" stop-opacity="0.5"/>
+            <stop offset="100%" stop-color="#40b85c" stop-opacity="0"/>
+          </radialGradient>
+        </defs>
+
+        <!-- FlakeMonster character -->
+        <g class="hero-monster-wrap">
+          <g transform="translate(15, 45) scale(1.35)">
+            <ellipse cx="60" cy="68" rx="42" ry="40" fill="#40b85c"/>
+            <ellipse cx="60" cy="68" rx="42" ry="40" fill="url(#heroBodyGrad)"/>
+            <path d="M38 32 L30 10 L44 28Z" fill="#2d8a43"/>
+            <path d="M82 32 L90 10 L76 28Z" fill="#2d8a43"/>
+            <circle cx="60" cy="60" r="18" fill="white"/>
+            <circle cx="62" cy="58" r="10" fill="#1a1a2e"/>
+            <circle cx="65" cy="55" r="3.5" fill="white"/>
+            <path d="M42 82 Q50 94 60 88 Q70 94 78 82" stroke="#1a1a2e" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+            <rect x="49" y="82" width="5" height="6" rx="1" fill="white"/>
+            <rect x="60" y="83" width="5" height="5" rx="1" fill="white"/>
+            <path d="M85 38 L78 52 L84 52 L74 70" stroke="#ffd43b" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+            <ellipse cx="44" cy="106" rx="10" ry="5" fill="#2d8a43"/>
+            <ellipse cx="76" cy="106" rx="10" ry="5" fill="#2d8a43"/>
+            <path d="M20 65 Q10 58 14 48" stroke="#2d8a43" stroke-width="6" stroke-linecap="round" fill="none"/>
+            <path d="M100 65 Q110 58 106 48" stroke="#2d8a43" stroke-width="6" stroke-linecap="round" fill="none"/>
+          </g>
+        </g>
+
+        <!-- Lightning bolt -->
+        <g class="hero-lightning">
+          <path d="M172,125 L198,100 L188,125 L230,92 L215,122 L265,98 L250,128 L310,105 L290,138 L348,125"
+            stroke="#ffd43b" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity="0.3"
+            filter="url(#bolt-blur)"/>
+          <path d="M172,125 L198,100 L188,125 L230,92 L215,122 L265,98 L250,128 L310,105 L290,138 L348,125"
+            stroke="#ffd43b" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+          <path d="M172,125 L198,100 L188,125 L230,92 L215,122 L265,98 L250,128 L310,105 L290,138 L348,125"
+            stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity="0.6"/>
+        </g>
+
+        <!-- Impact flash -->
+        <circle class="hero-impact" cx="350" cy="130" r="15" fill="#ffd43b"/>
+
+        <!-- Bug (cockroach) -->
+        <g class="hero-bug" transform="translate(380, 148)">
+          <!-- Abdomen -->
+          <ellipse cx="0" cy="0" rx="36" ry="26" fill="#7B3F00"/>
+          <ellipse cx="0" cy="0" rx="36" ry="26" fill="url(#bugSheen)"/>
+          <line x1="0" y1="-26" x2="0" y2="26" stroke="#5C2E00" stroke-width="1.5" opacity="0.5"/>
+          <path d="M-33,-10 Q0,-14 33,-10" stroke="#5C2E00" stroke-width="0.8" fill="none" opacity="0.4"/>
+          <path d="M-35,3 Q0,-1 35,3" stroke="#5C2E00" stroke-width="0.8" fill="none" opacity="0.4"/>
+          <path d="M-30,15 Q0,11 30,15" stroke="#5C2E00" stroke-width="0.8" fill="none" opacity="0.4"/>
+          <!-- Thorax -->
+          <ellipse cx="38" cy="0" rx="12" ry="14" fill="#8B4513"/>
+          <!-- Head -->
+          <ellipse cx="52" cy="-2" rx="11" ry="10" fill="#6B3410"/>
+          <!-- Eyes (bulging, red) -->
+          <circle cx="58" cy="-8" r="5.5" fill="#CC0000"/>
+          <circle cx="58" cy="-8" r="2.5" fill="#1a1a2e"/>
+          <circle cx="59.5" cy="-9.5" r="1.5" fill="rgba(255,255,255,0.5)"/>
+          <circle cx="55" cy="5" r="4.5" fill="#CC0000"/>
+          <circle cx="55" cy="5" r="2" fill="#1a1a2e"/>
+          <circle cx="56" cy="3.5" r="1.2" fill="rgba(255,255,255,0.5)"/>
+          <!-- Mandibles -->
+          <path d="M62,-2 L71,-6 L67,0Z" fill="#4A2208"/>
+          <path d="M61,2 L70,7 L66,0Z" fill="#4A2208"/>
+          <!-- Antennae -->
+          <path d="M60,-10 Q78,-38 86,-42" stroke="#5C3317" stroke-width="2" stroke-linecap="round" fill="none"/>
+          <path d="M57,-13 Q68,-42 58,-52" stroke="#5C3317" stroke-width="2" stroke-linecap="round" fill="none"/>
+          <circle cx="86" cy="-42" r="2.5" fill="#5C3317"/>
+          <circle cx="58" cy="-52" r="2.5" fill="#5C3317"/>
+          <!-- Legs (3 pairs, jointed) -->
+          <path d="M38,-12 L52,-32 L66,-26" stroke="#5C3317" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+          <path d="M38,12 L52,32 L66,26" stroke="#5C3317" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+          <path d="M8,-24 L12,-46 L28,-42" stroke="#5C3317" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+          <path d="M8,24 L12,46 L28,42" stroke="#5C3317" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+          <path d="M-22,-24 L-32,-48 L-16,-50" stroke="#5C3317" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+          <path d="M-22,24 L-32,48 L-16,50" stroke="#5C3317" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+          <!-- Spots -->
+          <circle cx="-14" cy="-8" r="3.5" fill="#5C2E00" opacity="0.5"/>
+          <circle cx="10" cy="8" r="4" fill="#5C2E00" opacity="0.5"/>
+          <circle cx="-7" cy="15" r="2.5" fill="#5C2E00" opacity="0.5"/>
+          <circle cx="20" cy="-14" r="3" fill="#5C2E00" opacity="0.5"/>
+          <!-- Drool -->
+          <path d="M68,2 Q72,12 67,18" stroke="#7CCD7C" stroke-width="1.5" fill="none" opacity="0.5"/>
+          <circle cx="67" cy="18" r="2" fill="#7CCD7C" opacity="0.4"/>
+        </g>
+
+        <!-- Smoke particles -->
+        <g class="hero-smoke">
+          <circle class="smoke-p" cx="375" cy="130" r="4" fill="#9e9e9e" style="--sd:0s"/>
+          <circle class="smoke-p" cx="388" cy="138" r="3" fill="#888" style="--sd:0.12s"/>
+          <circle class="smoke-p" cx="368" cy="142" r="3.5" fill="#aaa" style="--sd:0.06s"/>
+          <circle class="smoke-p" cx="395" cy="125" r="2.5" fill="#999" style="--sd:0.2s"/>
+          <circle class="smoke-p" cx="372" cy="155" r="3" fill="#888" style="--sd:0.15s"/>
+          <circle class="smoke-p" cx="390" cy="148" r="2" fill="#aaa" style="--sd:0.25s"/>
+        </g>
+      </svg>
+    </div>
+  </section>
+
+  <!-- Demo 0: How It Works (Pipeline) -->
+  <section id="pipeline-demo">
+    <h2>How It Works</h2>
+    <p>FlakeMonster uses <a href="https://github.com/acornjs/acorn"><b>Acorn</b></a> to parse your code into an AST, walks the tree to find async functions and top-level module statements, injects delay nodes, then generates the modified source.</p>
+
+    <div class="pipeline-steps" id="pipeline-steps">
+      <button class="pipeline-step active" data-step="0">
+        <span class="step-num">1</span>
+        <span class="step-label">Source</span>
+      </button>
+      <span class="step-arrow">&rarr;</span>
+      <button class="pipeline-step" data-step="1">
+        <span class="step-num">2</span>
+        <span class="step-label">Parse</span>
+      </button>
+      <span class="step-arrow">&rarr;</span>
+      <button class="pipeline-step" data-step="2">
+        <span class="step-num">3</span>
+        <span class="step-label">Walk</span>
+      </button>
+      <span class="step-arrow">&rarr;</span>
+      <button class="pipeline-step" data-step="3">
+        <span class="step-num">4</span>
+        <span class="step-label">Inject</span>
+      </button>
+      <span class="step-arrow">&rarr;</span>
+      <button class="pipeline-step" data-step="4">
+        <span class="step-num">5</span>
+        <span class="step-label">Generate</span>
+      </button>
+      <span class="step-arrow">&rarr;</span>
+      <button class="pipeline-step" data-step="5">
+        <span class="step-num">6</span>
+        <span class="step-label">Restore</span>
+      </button>
+    </div>
+
+    <div class="pipeline-caption" id="pipeline-caption">Your JavaScript source code.</div>
+
+    <div id="pipeline-display" class="pipeline-display"></div>
   </section>
 
   <!-- Demo 1: Jitter Animation -->
   <section id="jitter-demo">
-    <h2>Jitter Animation</h2>
+    <h2>Operational Jitter</h2>
     <p>See how FlakeMonster reorders async operations by injecting deterministic delays.</p>
 
     <div class="controls">
-      <label>Seed: <input type="number" id="jitter-seed" value="42"></label>
+      <label>Seed:
+        <span class="stepper">
+          <button class="stepper-btn" data-delta="-1">&minus;</button>
+          <input type="number" id="jitter-seed" value="42">
+          <button class="stepper-btn" data-delta="1">+</button>
+        </span>
+      </label>
       <button id="jitter-run">Run</button>
     </div>
 
@@ -69,7 +257,7 @@
 
   <!-- Demo 2: Code Before/After -->
   <section id="code-demo">
-    <h2>Code Injection</h2>
+    <h2>Code Injection Intencity</h2>
     <p>Watch FlakeMonster inject delay statements into real JavaScript code.</p>
 
     <div class="controls">
@@ -85,8 +273,6 @@
           <button class="stepper-btn" data-delta="1">+</button>
         </span>
       </label>
-      <button id="code-inject">Inject</button>
-      <button id="code-restore" class="secondary" disabled>Restore</button>
     </div>
 
     <div class="panels">
@@ -103,22 +289,288 @@
 
   <!-- Demo 3: Seed Explorer -->
   <section id="seed-demo">
-    <h2>Seed Explorer</h2>
-    <p>Every (seed, file, function, position) tuple produces the same delay. Always.</p>
+    <h2>File / Seed Based Determinism</h2>
+    <p>Each seed is combined with the file path and function name to derive a unique delay. Same seed, same delays, every run.</p>
 
-    <div class="controls">
-      <label>Seed: <input type="number" id="seed-value" value="42"></label>
-      <label>File: <input type="text" id="seed-file" value="src/user.js"></label>
-      <label>Function: <input type="text" id="seed-fn" value="loadUser"></label>
+    <div class="se-graph">
+      <div class="se-header">
+        <div class="se-header-seed">
+          seed
+          <button class="seed-pause-btn" id="seed-play" title="Pause / Resume">
+            <span id="seed-play-icon">&#9646;&#9646;</span>
+          </button>
+        </div>
+        <div class="se-header-file" data-color="blue">src/user.js<span>loadUser()</span></div>
+        <div class="se-header-file" data-color="green">src/cart.js<span>getCart()</span></div>
+        <div class="se-header-file" data-color="purple">lib/auth.js<span>checkAuth()</span></div>
+      </div>
+      <div class="se-body" id="se-body"></div>
     </div>
 
-    <div id="seed-chart" class="seed-chart"></div>
     <pre id="seed-breakdown" class="seed-breakdown"></pre>
+  </section>
+
+  <!-- CI Section -->
+  <section id="ci-section">
+    <div class="ci-header">
+      <span class="ci-badge">Coming soon</span>
+      <h2>FlakeMonster CI</h2>
+      <p class="ci-subtitle">Catch flaky tests on every pull request. Automatically.</p>
+    </div>
+
+    <div class="ci-layout">
+      <!-- Left: YAML setup -->
+      <div class="ci-setup">
+        <div class="ci-steps">
+          <div class="ci-step">
+            <div class="ci-step-icon">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                <rect x="2" y="3" width="16" height="14" rx="2" stroke="currentColor" stroke-width="1.5"/>
+                <path d="M6 9l2 2 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <div>
+              <strong>Add one file</strong>
+              <span>Drop a YAML workflow into your repo</span>
+            </div>
+          </div>
+          <div class="ci-step-connector">
+            <svg width="2" height="20" viewBox="0 0 2 20"><line x1="1" y1="0" x2="1" y2="20" stroke="var(--accent)" stroke-width="1.5" stroke-dasharray="3 3" opacity="0.4"/></svg>
+          </div>
+          <div class="ci-step">
+            <div class="ci-step-icon">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                <circle cx="10" cy="10" r="7.5" stroke="currentColor" stroke-width="1.5"/>
+                <path d="M10 6v4l2.5 2.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <div>
+              <strong>Push code</strong>
+              <span>FlakeMonster runs 5 seeds on every PR</span>
+            </div>
+          </div>
+          <div class="ci-step-connector">
+            <svg width="2" height="20" viewBox="0 0 2 20"><line x1="1" y1="0" x2="1" y2="20" stroke="var(--accent)" stroke-width="1.5" stroke-dasharray="3 3" opacity="0.4"/></svg>
+          </div>
+          <div class="ci-step">
+            <div class="ci-step-icon">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                <path d="M3 4h14M3 8h10M3 12h12M3 16h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+              </svg>
+            </div>
+            <div>
+              <strong>See results</strong>
+              <span>A detailed comment lands on your PR</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="ci-yaml">
+          <div class="ci-yaml-tab">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="1" y="1" width="12" height="12" rx="2" stroke="currentColor" stroke-width="1.2"/><path d="M4 5l2 2-2 2" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/><line x1="7.5" y1="9" x2="10" y2="9" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+            .github/workflows/flake-monster.yml
+          </div>
+          <pre class="ci-yaml-code"><span class="syn-kw">name</span><span class="syn-pun">:</span> <span class="syn-str">FlakeMonster</span>
+<span class="syn-kw">on</span><span class="syn-pun">:</span> <span class="syn-pun">[</span><span class="syn-str">pull_request</span><span class="syn-pun">]</span>
+
+<span class="syn-kw">jobs</span><span class="syn-pun">:</span>
+  <span class="syn-kw">flake-check</span><span class="syn-pun">:</span>
+    <span class="syn-kw">runs-on</span><span class="syn-pun">:</span> <span class="syn-str">ubuntu-latest</span>
+    <span class="syn-kw">steps</span><span class="syn-pun">:</span>
+      <span class="syn-pun">-</span> <span class="syn-kw">uses</span><span class="syn-pun">:</span> <span class="syn-str">actions/checkout@v4</span>
+      <span class="syn-pun">-</span> <span class="syn-kw">uses</span><span class="syn-pun">:</span> <span class="syn-str">flake-monster/ci@v1</span>
+        <span class="syn-kw">with</span><span class="syn-pun">:</span>
+          <span class="syn-kw">test-command</span><span class="syn-pun">:</span> <span class="syn-str">npm test</span>
+          <span class="syn-kw">seeds</span><span class="syn-pun">:</span> <span class="syn-num">5</span></pre>
+        </div>
+      </div>
+
+      <!-- Right: Mock PR Comment -->
+      <div class="ci-preview">
+        <div class="pr-comment">
+          <div class="pr-comment-header">
+            <div class="pr-avatar">
+              <img src="website/logo.svg" alt="" class="pr-avatar-img">
+            </div>
+            <div class="pr-comment-meta">
+              <strong>flake-monster</strong> <span class="pr-meta-bot">bot</span> <span class="pr-meta-time">2 min ago</span>
+            </div>
+          </div>
+          <div class="pr-comment-body">
+            <div class="pr-comment-title">
+              <svg class="pr-title-icon" width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="7" stroke="#f38ba8" stroke-width="1.5"/><path d="M8 4.5v4" stroke="#f38ba8" stroke-width="1.5" stroke-linecap="round"/><circle cx="8" cy="11.5" r="0.75" fill="#f38ba8"/></svg>
+              Found <strong>2 flaky tests</strong> across 5 seeds
+            </div>
+            <table class="pr-table">
+              <thead>
+                <tr>
+                  <th></th>
+                  <th>Test</th>
+                  <th>Result</th>
+                  <th>Failed seeds</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr class="pr-row-flaky">
+                  <td class="pr-status-cell"><span class="pr-status-dot pr-status-flaky"></span></td>
+                  <td><code>checkout &rsaquo; applies discount</code></td>
+                  <td><span class="pr-result-bar"><span class="pr-result-pass" style="width:60%"></span><span class="pr-result-fail" style="width:40%"></span></span><span class="pr-result-label">3/5</span></td>
+                  <td><code>17</code> <code>42</code></td>
+                </tr>
+                <tr class="pr-row-flaky">
+                  <td class="pr-status-cell"><span class="pr-status-dot pr-status-flaky"></span></td>
+                  <td><code>auth &rsaquo; refresh expired token</code></td>
+                  <td><span class="pr-result-bar"><span class="pr-result-pass" style="width:80%"></span><span class="pr-result-fail" style="width:20%"></span></span><span class="pr-result-label">4/5</span></td>
+                  <td><code>89</code></td>
+                </tr>
+                <tr class="pr-row-ok">
+                  <td class="pr-status-cell"><span class="pr-status-dot pr-status-ok"></span></td>
+                  <td><code>cart &rsaquo; adds item</code></td>
+                  <td><span class="pr-result-bar"><span class="pr-result-pass" style="width:100%"></span></span><span class="pr-result-label">5/5</span></td>
+                  <td class="pr-cell-muted">, </td>
+                </tr>
+                <tr class="pr-row-ok">
+                  <td class="pr-status-cell"><span class="pr-status-dot pr-status-ok"></span></td>
+                  <td><code>user &rsaquo; loads profile</code></td>
+                  <td><span class="pr-result-bar"><span class="pr-result-pass" style="width:100%"></span></span><span class="pr-result-label">5/5</span></td>
+                  <td class="pr-cell-muted">, </td>
+                </tr>
+              </tbody>
+            </table>
+            <div class="pr-comment-footer">
+              <span class="pr-footer-detail">Seeds: <code>7</code> <code>17</code> <code>42</code> <code>63</code> <code>89</code></span>
+              <span class="pr-footer-link">
+                <img src="website/logo.svg" alt="" class="pr-footer-logo">
+                FlakeMonster
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Pricing Section -->
+  <section id="pricing-section">
+    <div class="pricing-header">
+      <h2>Pricing</h2>
+      <p>The CLI is free forever. The CI product adds automation and insights for teams that ship fast.</p>
+    </div>
+
+    <div class="pricing-cards">
+      <div class="pricing-card">
+        <div class="pricing-card-icon">
+          <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
+            <rect x="4" y="6" width="28" height="24" rx="3" stroke="var(--accent)" stroke-width="2"/>
+            <path d="M4 12h28" stroke="var(--accent)" stroke-width="2"/>
+            <circle cx="8" cy="9" r="1.2" fill="#f38ba8"/>
+            <circle cx="12" cy="9" r="1.2" fill="#fab387"/>
+            <circle cx="16" cy="9" r="1.2" fill="#a6e3a1"/>
+            <path d="M11 19l3 3-3 3" stroke="var(--accent)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            <line x1="17" y1="25" x2="25" y2="25" stroke="var(--accent)" stroke-width="1.8" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div class="pricing-card-header">
+          <h3>Open Source</h3>
+          <div class="pricing-price">$0</div>
+          <span class="pricing-period">forever</span>
+        </div>
+        <p class="pricing-desc">Full CLI with inject, test, and restore. Run locally, run in CI, run anywhere.</p>
+        <ul class="pricing-features">
+          <li>Full CLI &amp; GitHub Action</li>
+          <li>Dashboard ,  1 repo</li>
+          <li>7-day trend history</li>
+          <li>Community support</li>
+        </ul>
+        <a href="https://github.com/andrewdear/flake-monster" class="pricing-btn pricing-btn-secondary">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+          Get started
+        </a>
+      </div>
+      <div class="pricing-card pricing-card-pro">
+        <div class="pricing-card-icon">
+          <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
+            <rect x="4" y="6" width="28" height="24" rx="3" stroke="var(--accent)" stroke-width="2"/>
+            <path d="M4 12h28" stroke="var(--accent)" stroke-width="2"/>
+            <circle cx="8" cy="9" r="1.2" fill="#f38ba8"/>
+            <circle cx="12" cy="9" r="1.2" fill="#fab387"/>
+            <circle cx="16" cy="9" r="1.2" fill="#a6e3a1"/>
+            <polyline points="10,25 14,20 18,23 22,16 26,18" stroke="var(--accent)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+            <circle cx="14" cy="20" r="1.5" fill="var(--accent)"/>
+            <circle cx="22" cy="16" r="1.5" fill="var(--accent)"/>
+          </svg>
+        </div>
+        <div class="pricing-card-header">
+          <h3>Team</h3>
+          <div class="pricing-price">$29<span>/mo</span></div>
+          <span class="pricing-period">per team</span>
+        </div>
+        <p class="pricing-desc">For teams that need visibility across every repo. Track trends, get alerted, and stop flaky tests before they spread.</p>
+        <ul class="pricing-features">
+          <li>Unlimited repos on dashboard</li>
+          <li>90-day trend history</li>
+          <li>Slack &amp; email alerts</li>
+          <li>Priority support</li>
+        </ul>
+        <span class="pricing-btn pricing-btn-primary pricing-btn-disabled">Coming soon</span>
+      </div>
+    </div>
   </section>
 
   <!-- Footer -->
   <footer>
-    <p>MIT License &middot; <a href="https://github.com/andrewdear/flake-monster">Source on GitHub</a></p>
+    <div class="footer-wave">
+      <svg viewBox="0 0 1440 120" preserveAspectRatio="none">
+        <path d="M0,80 C360,120 720,20 1080,80 C1260,110 1380,60 1440,80 L1440,120 L0,120Z" fill="var(--accent)" opacity="0.08"/>
+        <path d="M0,90 C300,40 600,120 960,70 C1200,30 1380,100 1440,70 L1440,120 L0,120Z" fill="var(--accent)" opacity="0.05"/>
+      </svg>
+    </div>
+
+    <div class="footer-inner">
+      <div class="footer-brand">
+        <img src="website/logo.svg" alt="FlakeMonster" class="footer-logo">
+        <span class="footer-name">FlakeMonster</span>
+        <p class="footer-tagline">Surface flaky tests with<br>deterministic async delays</p>
+      </div>
+
+      <div class="footer-columns">
+        <div class="footer-col">
+          <h4>Demos</h4>
+          <a href="#pipeline-demo">How It Works</a>
+          <a href="#jitter-demo">Jitter Animation</a>
+          <a href="#code-demo">Code Injection</a>
+          <a href="#seed-demo">Seed Explorer</a>
+        </div>
+        <div class="footer-col">
+          <h4>Product</h4>
+          <a href="#ci-section">CI Integration</a>
+          <a href="#pricing-section">Pricing</a>
+        </div>
+        <div class="footer-col">
+          <h4>Project</h4>
+          <a href="https://github.com/andrewdear/flake-monster">GitHub</a>
+          <a href="https://github.com/andrewdear/flake-monster/issues">Issues</a>
+          <a href="https://github.com/andrewdear/flake-monster#readme">Docs</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer-art">
+      <span class="footer-dot" style="--x:12%;--d:3s"></span>
+      <span class="footer-dot" style="--x:28%;--d:4.5s"></span>
+      <span class="footer-dot" style="--x:45%;--d:2.5s"></span>
+      <span class="footer-dot" style="--x:62%;--d:3.8s"></span>
+      <span class="footer-dot" style="--x:78%;--d:2.8s"></span>
+      <span class="footer-dot" style="--x:90%;--d:4s"></span>
+    </div>
+
+    <div class="footer-bottom">
+      <span>MIT License</span>
+      <span class="footer-sep">&middot;</span>
+      <span>Made to catch the bugs that hide</span>
+      <span class="footer-sep">&middot;</span>
+      <span class="footer-lightning">&zwnj;&#9889;</span>
+    </div>
   </footer>
 
 </body>

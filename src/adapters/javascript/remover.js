@@ -14,11 +14,11 @@ const RECOVERY_STAMP = 'jt92-se2j!';
  */
 function classifyRecoveryMatch(trimmed) {
   if (trimmed.includes(RECOVERY_STAMP)) return 'stamp';
-  // Match the actual delay call pattern: await __FlakeMonster__ . delay (
+  // Match the delay call pattern: await __FlakeMonster__ (
   // Allows whitespace between tokens (linter reformatting) but requires
-  // the .delay( shape so we don't false-positive on test code that merely
-  // references the identifier in strings or assertions.
-  if (new RegExp(`await\\s+${DELAY_OBJECT}\\s*\\.\\s*delay\\s*\\(`).test(trimmed)) return 'identifier';
+  // __FlakeMonster__ as the callee so we don't false-positive on test code
+  // that merely references the identifier in strings or assertions.
+  if (new RegExp(`await\\s+${DELAY_OBJECT}\\s*\\(`).test(trimmed)) return 'identifier';
   if (/import\s.*flake-monster\.runtime/.test(trimmed)) return 'runtime-import';
   return null;
 }

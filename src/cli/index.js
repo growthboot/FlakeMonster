@@ -8,7 +8,7 @@ export function createCli() {
 
   program
     .name('flake-monster')
-    .description('Source-to-source test hardener — injects async delays to surface flaky tests')
+    .description('Source-to-source test hardener, injects async delays to surface flaky tests')
     .version('0.1.0');
 
   registerInjectCommand(program);

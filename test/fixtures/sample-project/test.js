@@ -1,4 +1,4 @@
-// Simple test that always passes — used to verify the test harness works
+// Simple test that always passes, used to verify the test harness works
 import { loadDashboard } from './src/app.js';
 
 const result = await loadDashboard();

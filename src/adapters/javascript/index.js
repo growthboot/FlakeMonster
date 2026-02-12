@@ -1,9 +1,8 @@
 import { fileURLToPath } from 'node:url';
 import { dirname, join, posix } from 'node:path';
 import { parseSource } from './parser.js';
-import { injectDelays, addRuntimeImport } from './injector.js';
+import { computeInjections, computeRuntimeImportInsertion, applyInsertions } from './injector.js';
 import { recoverDelays, scanForRecovery } from './remover.js';
-import { generateSource } from './codegen.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const RUNTIME_FILENAME = 'flake-monster.runtime.js';
@@ -45,15 +44,16 @@ export function createJavaScriptAdapter() {
 
     inject(source, options) {
       const { ast } = parseSource(source);
-      const points = injectDelays(ast, options);
+      const { insertions, points } = computeInjections(ast, source, options);
       const runtimeNeeded = points.length > 0;
 
       if (runtimeNeeded) {
         const importPath = computeRuntimeImportPath(options.filePath);
-        addRuntimeImport(ast, importPath);
+        const imp = computeRuntimeImportInsertion(ast, source, importPath);
+        if (imp) insertions.push(imp);
       }
 
-      const output = generateSource(ast);
+      const output = applyInsertions(source, insertions);
       return { source: output, points, runtimeNeeded };
     },
 

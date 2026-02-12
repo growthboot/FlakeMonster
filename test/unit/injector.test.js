@@ -10,7 +10,7 @@ const FIXTURES = join(__dirname, '..', 'fixtures');
 
 const adapter = createJavaScriptAdapter();
 
-describe('JavaScript adapter — inject', () => {
+describe('JavaScript adapter, inject', () => {
   it('injects delays into async function bodies (medium mode)', async () => {
     const source = await readFile(join(FIXTURES, 'simple-async.js'), 'utf-8');
     const result = adapter.inject(source, {
@@ -22,7 +22,7 @@ describe('JavaScript adapter — inject', () => {
       skipGenerators: true,
     });
 
-    assert.ok(result.source.includes('__FlakeMonster__.delay'), 'should contain __FlakeMonster__.delay calls');
+    assert.ok(result.source.includes('__FlakeMonster__('), 'should contain __FlakeMonster__() calls');
     assert.ok(result.source.includes('flake-monster.runtime'), 'should have runtime import');
     assert.ok(result.runtimeNeeded, 'runtimeNeeded should be true');
     assert.ok(result.points.length > 0, 'should have injection points');
@@ -90,7 +90,7 @@ describe('JavaScript adapter — inject', () => {
     assert.strictEqual(arrowPoints.length, 2, 'should inject into block-body arrows');
   });
 
-  it('skips files with no async functions', async () => {
+  it('injects top-level delays even in files with no async functions', async () => {
     const source = await readFile(join(FIXTURES, 'no-async.js'), 'utf-8');
     const result = adapter.inject(source, {
       filePath: 'test/fixtures/no-async.js',
@@ -101,12 +101,18 @@ describe('JavaScript adapter — inject', () => {
       skipGenerators: true,
     });
 
-    assert.strictEqual(result.points.length, 0, 'no injections for sync-only files');
-    assert.strictEqual(result.runtimeNeeded, false);
-    assert.ok(!result.source.includes('__FlakeMonster__.delay'), 'no delay calls');
+    // no-async.js has 3 top-level statements: function, const, export
+    // All get top-level injection in medium mode (none are return/throw)
+    const topLevelPoints = result.points.filter((p) => p.fnName === '<top-level>');
+    assert.strictEqual(topLevelPoints.length, 3, 'should inject at top level');
+    assert.ok(result.runtimeNeeded, 'runtimeNeeded should be true');
+
+    // No function body injections (no async functions)
+    const fnPoints = result.points.filter((p) => p.fnName !== '<top-level>');
+    assert.strictEqual(fnPoints.length, 0, 'no function body injections');
   });
 
-  it('embeds seed and file path in delay calls', async () => {
+  it('embeds delay ms values directly in calls', async () => {
     const source = await readFile(join(FIXTURES, 'simple-async.js'), 'utf-8');
     const result = adapter.inject(source, {
       filePath: 'src/user.js',
@@ -117,7 +123,99 @@ describe('JavaScript adapter — inject', () => {
       skipGenerators: true,
     });
 
-    assert.ok(result.source.includes('seed: 921'), 'should embed the seed');
-    assert.ok(result.source.includes('"src/user.js"'), 'should embed the file path');
+    // Each injection point should have a delayMs in the metadata
+    for (const point of result.points) {
+      assert.ok(typeof point.delayMs === 'number', 'point should have delayMs');
+      assert.ok(point.delayMs >= 0 && point.delayMs <= 50, `delayMs ${point.delayMs} in range`);
+      // The delay value should appear in the generated source
+      assert.ok(result.source.includes(`__FlakeMonster__(${point.delayMs})`), `source should contain __FlakeMonster__(${point.delayMs})`);
+    }
+  });
+
+  it('produces deterministic delays from the same seed', async () => {
+    const source = await readFile(join(FIXTURES, 'simple-async.js'), 'utf-8');
+    const opts = {
+      filePath: 'src/user.js',
+      mode: 'medium',
+      seed: 42,
+      delayConfig: { minMs: 0, maxMs: 50, distribution: 'uniform' },
+      skipTryCatch: false,
+      skipGenerators: true,
+    };
+
+    const result1 = adapter.inject(source, opts);
+    const result2 = adapter.inject(source, opts);
+
+    assert.deepStrictEqual(
+      result1.points.map((p) => p.delayMs),
+      result2.points.map((p) => p.delayMs),
+      'same seed should produce identical delays',
+    );
+  });
+
+  it('injects delays at module top-level (medium mode)', async () => {
+    const source = await readFile(join(FIXTURES, 'top-level-await.js'), 'utf-8');
+    const result = adapter.inject(source, {
+      filePath: 'test/fixtures/top-level-await.js',
+      mode: 'medium',
+      seed: 42,
+      delayConfig: { minMs: 0, maxMs: 50, distribution: 'uniform' },
+      skipTryCatch: false,
+      skipGenerators: true,
+    });
+
+    assert.ok(result.source.includes('__FlakeMonster__('), 'should contain delay calls');
+    assert.ok(result.runtimeNeeded, 'runtimeNeeded should be true');
+
+    // top-level-await.js has 4 non-import top-level statements:
+    // const config, const user, console.log, export
+    // None are return/throw, so all 4 get injected in medium mode
+    const topLevelPoints = result.points.filter((p) => p.fnName === '<top-level>');
+    assert.strictEqual(topLevelPoints.length, 4, 'should have 4 top-level injections');
+
+    // No function body injections (no async functions in file)
+    const fnPoints = result.points.filter((p) => p.fnName !== '<top-level>');
+    assert.strictEqual(fnPoints.length, 0, 'no function body injections');
+  });
+
+  it('injects at top-level in light mode (first statement only)', async () => {
+    const source = await readFile(join(FIXTURES, 'top-level-await.js'), 'utf-8');
+    const result = adapter.inject(source, {
+      filePath: 'test/fixtures/top-level-await.js',
+      mode: 'light',
+      seed: 42,
+      delayConfig: { minMs: 0, maxMs: 50, distribution: 'uniform' },
+      skipTryCatch: false,
+      skipGenerators: true,
+    });
+
+    const topLevelPoints = result.points.filter((p) => p.fnName === '<top-level>');
+    assert.strictEqual(topLevelPoints.length, 1, 'light mode: one top-level injection');
+  });
+
+  it('injects at top-level AND inside async functions together', async () => {
+    const source = await readFile(join(FIXTURES, 'simple-async.js'), 'utf-8');
+    const result = adapter.inject(source, {
+      filePath: 'test/fixtures/simple-async.js',
+      mode: 'medium',
+      seed: 42,
+      delayConfig: { minMs: 0, maxMs: 50, distribution: 'uniform' },
+      skipTryCatch: false,
+      skipGenerators: true,
+    });
+
+    // simple-async.js has:
+    // - 3 top-level non-import statements (loadUser fn, saveUser fn, export)
+    // - 2 injections in loadUser body + 2 in saveUser body
+    const topLevelPoints = result.points.filter((p) => p.fnName === '<top-level>');
+    assert.strictEqual(topLevelPoints.length, 3, 'should have 3 top-level injections');
+
+    const loadUserPoints = result.points.filter((p) => p.fnName === 'loadUser');
+    assert.strictEqual(loadUserPoints.length, 2, 'loadUser body still gets 2 injections');
+
+    const saveUserPoints = result.points.filter((p) => p.fnName === 'saveUser');
+    assert.strictEqual(saveUserPoints.length, 2, 'saveUser body still gets 2 injections');
+
+    assert.strictEqual(result.points.length, 7, 'total: 3 top-level + 2 + 2 function body');
   });
 });

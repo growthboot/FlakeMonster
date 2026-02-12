@@ -6,7 +6,7 @@ import { Manifest, hashContent } from './manifest.js';
 /**
  * Language-agnostic injection orchestrator.
  * Routes files to the correct adapter and manages manifests.
- * Never touches ASTs directly — all parsing/manipulation is in adapters.
+ * Never touches ASTs directly, all parsing/manipulation is in adapters.
  */
 export class InjectorEngine {
   /**
@@ -116,7 +116,7 @@ export class InjectorEngine {
     for (const [filePath, entry] of Object.entries(files)) {
       const adapter = this.registry.getAdapter(entry.adapter);
       if (!adapter) {
-        console.warn(`No adapter found for "${entry.adapter}" — skipping ${filePath}`);
+        console.warn(`No adapter found for "${entry.adapter}", skipping ${filePath}`);
         continue;
       }
 
@@ -125,7 +125,7 @@ export class InjectorEngine {
       try {
         source = await readFile(absPath, 'utf-8');
       } catch {
-        console.warn(`File not found: ${filePath} — skipping`);
+        console.warn(`File not found: ${filePath}, skipping`);
         continue;
       }
 

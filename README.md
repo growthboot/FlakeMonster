@@ -6,7 +6,7 @@ A source-to-source test hardener that finds flaky tests by injecting async delay
 
 Automated tests run unrealistically fast. API calls resolve instantly against local mocks, database queries return in microseconds, commands are fired fasters than you can blink and eye, and every async operation completes in the exact same order every time. In production, none of that is true. Network latency varies, services respond unpredictably, computer performance varies, devices glitch, and users interact at human speed. Tests that pass in this perfectly-timed environment can hide real bugs, race conditions, missing `await`s, and unguarded state mutations, that only surface when timing shifts even slightly.
 
-FlakeMonster closes that gap. It **deliberately injects async delays** between statements in your `async` functions, forcing the event loop to yield where it normally wouldn't. Tests that depend on everything happening in a precise order will start failing, and that's the point. A test that only passes because it runs too fast to trigger its own race condition **should not be passing**.
+FlakeMonster closes that gap. It **deliberately injects async delays** between statements in your `async` functions and at the module top level (using top-level `await`), forcing the event loop to yield where it normally wouldn't. Tests that depend on everything happening in a precise order will start failing, and that's the point. A test that only passes because it runs too fast to trigger its own race condition **should not be passing**.
 
 The goal isn't to slow your tests down. The goal is to increasing flake likelyhood random timing glitches so that you can catch the test flakes on your first tests.
 
@@ -36,7 +36,7 @@ npx flake-monster test --cmd "npm test"
 ```
 
 That's it. FlakeMonster will:
-1. Inject `await` delays between statements in async functions directly in your source files
+1. Inject `await` delays between statements in async functions and at the module top level, directly in your source files
 2. Run your tests against the modified code
 3. Repeat with a different seed each run
 4. Restore your files to their original state
@@ -136,11 +136,15 @@ flake-monster restore --recover
 
 Modes control how many delays get injected:
 
-- **`light`**, One delay at the top of each async function. Good for a quick sanity check.
-- **`medium`**, Delays between statements, skipping before `return`/`throw`. The default, catches most race conditions without being overwhelming.
-- **`hardcore`**, Delays between nearly every statement. Maximum chaos. Use this when medium isn't surfacing a suspected flake.
+- **`light`**, One delay at the top of each async function and one at the first module-level statement. Good for a quick sanity check.
+- **`medium`**, Delays between statements, skipping before `return`/`throw`. Applies to both async function bodies and top-level module scope. The default, catches most race conditions without being overwhelming.
+- **`hardcore`**, Delays between nearly every statement, everywhere. Maximum chaos. Use this when medium isn't surfacing a suspected flake.
 
 ## What Gets Injected
+
+FlakeMonster injects delays in two places: **inside async function bodies** and **at the module top level** (using top-level `await`).
+
+### Inside async functions
 
 Given this code:
 
@@ -158,17 +162,47 @@ FlakeMonster (in `medium` mode) produces something like:
 import { __FlakeMonster__ } from "./flake-monster.runtime.js";
 
 async function loadUser(id) {
-  /* @flake-monster[jt92-se2j!] v1 id=a1b2c3d4 seed=921 mode=medium */
-  await __FlakeMonster__.delay({ seed: 921, file: "src/user.js", fn: "loadUser", n: 0 });
+  /* @flake-monster[jt92-se2j!] v1 */
+  await __FlakeMonster__(23);
   const user = await api.getUser(id);
-  /* @flake-monster[jt92-se2j!] v1 id=e5f6g7h8 seed=921 mode=medium */
-  await __FlakeMonster__.delay({ seed: 921, file: "src/user.js", fn: "loadUser", n: 1 });
+  /* @flake-monster[jt92-se2j!] v1 */
+  await __FlakeMonster__(41);
   const prefs = await api.getPrefs(id);
   return { ...user, ...prefs };
 }
 ```
 
-Each `__FlakeMonster__.delay()` call yields back to the event loop for a short, deterministic duration derived from the seed + location. This is enough to reorder microtask scheduling and expose races.
+### At the module top level
+
+Top-level `await` is valid in ES modules. FlakeMonster also injects delays between top-level statements to surface races in module initialization order:
+
+```js
+import { fetchData } from './api.js';
+
+const config = await fetchData('/config');
+const user = await fetchData(`/users/${config.defaultId}`);
+
+export { config, user };
+```
+
+Becomes:
+
+```js
+import { fetchData } from './api.js';
+import { __FlakeMonster__ } from "./flake-monster.runtime.js";
+
+/* @flake-monster[jt92-se2j!] v1 */
+await __FlakeMonster__(17);
+const config = await fetchData('/config');
+/* @flake-monster[jt92-se2j!] v1 */
+await __FlakeMonster__(38);
+const user = await fetchData(`/users/${config.defaultId}`);
+/* @flake-monster[jt92-se2j!] v1 */
+await __FlakeMonster__(9);
+export { config, user };
+```
+
+Each `await __FlakeMonster__(N)` call yields back to the event loop for a short, deterministic duration derived from the seed + location. This is enough to reorder microtask scheduling and expose races.
 
 ## Configuration
 
@@ -194,7 +228,7 @@ CLI flags override config file values.
 ## How It Works
 
 1. **Parsing**, Source files are parsed into an AST using [Acorn](https://github.com/acornjs/acorn)
-2. **Injection**, `await __FlakeMonster__.delay(...)` statements are inserted at statement boundaries inside async function bodies, with marker comments for tracking
+2. **Injection**, `await __FlakeMonster__(N)` statements are inserted at statement boundaries inside async function bodies and at the module top level, with marker comments for tracking
 3. **Determinism**, Delay durations are derived from `seed + file + function + position`, so the same seed always produces the same delays
 4. **Removal**, Injected code is removed via text-based pattern matching on the unique stamp (`jt92-se2j!`) and the `__FlakeMonster__` identifier, so it works even after linters, formatters, or AI tools have modified the injected code
 5. **In-place by default**, Injection happens directly in your source files so you can debug freely. Use `--workspace` for isolated copies if preferred
