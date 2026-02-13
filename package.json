@@ -1,10 +1,10 @@
 {
   "name": "flake-monster",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Source-to-source test hardener that injects async delays to surface flaky tests",
   "type": "module",
   "bin": {
-    "flake-monster": "./bin/flake-monster.js"
+    "flake-monster": "bin/flake-monster.js"
   },
   "files": [
     "bin/",
@@ -27,7 +27,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/growthboot/FlakeMonster.git"
+    "url": "git+https://github.com/growthboot/FlakeMonster.git"
   },
   "homepage": "https://flakemonster.com",
   "bugs": {

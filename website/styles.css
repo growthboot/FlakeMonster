@@ -939,6 +939,8 @@ section > p > a {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  height: 224px; /* 8 rows × 28px (22px cell + 6px padding) */
+  overflow-anchor: none;
 }
 
 /* Each row: seed label + 3 bar cells */
