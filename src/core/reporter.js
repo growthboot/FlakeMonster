@@ -2,6 +2,14 @@
  * Formats test run results for terminal output.
  */
 export class Reporter {
+  constructor({ quiet = false } = {}) {
+    this.quiet = quiet;
+  }
+
+  log(...args) {
+    if (!this.quiet) console.log(...args);
+  }
+
   /**
    * Print a summary of all test runs.
    * @param {Object[]} results - Array of per-run results
@@ -9,6 +17,7 @@ export class Reporter {
    * @param {number} totalRuns
    */
   summarize(results, totalRuns) {
+    if (this.quiet) return;
     console.log('\n--- FlakeMonster Results ---\n');
 
     const failures = [];
@@ -52,6 +61,7 @@ export class Reporter {
    * @param {number} totalRuns
    */
   printRunResult(result, totalRuns) {
+    if (this.quiet) return;
     const status = result.exitCode === 0 ? 'PASS' : 'FAIL';
     const dur = (result.durationMs / 1000).toFixed(1);
     let line = `  Run ${result.runIndex + 1}/${totalRuns}: ${status} (seed=${result.seed}, ${dur}s)`;

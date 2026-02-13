@@ -6,6 +6,12 @@
   "bin": {
     "flake-monster": "./bin/flake-monster.js"
   },
+  "files": [
+    "bin/",
+    "src/",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "test": "node --test test/unit/*.test.js",
     "test:integration": "node --test test/integration/*.test.js",
@@ -19,6 +25,15 @@
     "test-hardener"
   ],
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/growthboot/FlakeMonster.git"
+  },
+  "homepage": "https://flakemonster.com",
+  "bugs": {
+    "url": "https://github.com/growthboot/FlakeMonster/issues"
+  },
+  "author": "growthboot",
   "engines": {
     "node": ">=18.0.0"
   },

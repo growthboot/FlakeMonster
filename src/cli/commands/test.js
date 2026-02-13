@@ -8,6 +8,8 @@ import { parseSeed, deriveSeed } from '../../core/seed.js';
 import { ProjectWorkspace, getFlakeMonsterDir } from '../../core/workspace.js';
 import { loadConfig, mergeWithCliOptions } from '../../core/config.js';
 import { Reporter } from '../../core/reporter.js';
+import { detectRunner, parseTestOutput } from '../../core/parsers/index.js';
+import { analyzeFlakiness } from '../../core/flake-analyzer.js';
 
 function execInDir(command, cwd) {
   try {
@@ -41,6 +43,8 @@ export function registerTestCommand(program) {
     .option('--keep-all', 'Keep all workspaces (pass or fail)', false)
     .option('--min-delay <ms>', 'Minimum delay in milliseconds', '0')
     .option('--max-delay <ms>', 'Maximum delay in milliseconds', '50')
+    .option('-f, --format <format>', 'Output format: text or json', 'text')
+    .option('--runner <runner>', 'Test runner: jest, node-test, tap, or auto', 'auto')
     .argument('[globs...]', 'File patterns to process', ['src/**/*.js'])
     .action(async (globs, options) => {
       try {
@@ -52,21 +56,30 @@ export function registerTestCommand(program) {
         const runs = Number(options.runs);
         const testCmd = options.cmd;
         const inPlace = !options.workspace;
+        const jsonOutput = options.format === 'json';
+
+        // Resolve which runner parser to use
+        const runner = options.runner === 'auto'
+          ? detectRunner(testCmd)
+          : options.runner;
 
         const profile = FlakeProfile.fromConfig(merged);
         const registry = new AdapterRegistry();
         registry.register(createJavaScriptAdapter());
         const engine = new InjectorEngine(registry, profile);
-        const reporter = new Reporter();
+        const reporter = new Reporter({ quiet: jsonOutput });
 
-        console.log(`FlakeMonster test harness`);
-        console.log(`  Runs: ${runs} | Mode: ${profile.mode} | Base seed: ${baseSeed}`);
-        console.log(`  Command: ${testCmd}`);
-        console.log(`  Patterns: ${globs.join(', ')}`);
-        if (inPlace) {
-          console.log('  Mode: in-place (source files will be modified and restored)');
+        reporter.log(`FlakeMonster test harness`);
+        reporter.log(`  Runs: ${runs} | Mode: ${profile.mode} | Base seed: ${baseSeed}`);
+        reporter.log(`  Command: ${testCmd}`);
+        reporter.log(`  Patterns: ${globs.join(', ')}`);
+        if (runner) {
+          reporter.log(`  Runner: ${runner}`);
         }
-        console.log('');
+        if (inPlace) {
+          reporter.log('  Mode: in-place (source files will be modified and restored)');
+        }
+        reporter.log('');
 
         const results = [];
         let lastManifest = null;
@@ -91,6 +104,9 @@ export function registerTestCommand(program) {
             const { exitCode, stdout, stderr } = execInDir(testCmd, projectRoot);
             const durationMs = Date.now() - start;
 
+            // Parse test output if we have a runner
+            const parsed = runner ? parseTestOutput(runner, stdout) : null;
+
             const result = {
               runIndex: i,
               seed: runSeed,
@@ -100,6 +116,8 @@ export function registerTestCommand(program) {
               durationMs,
               workspacePath: projectRoot,
               kept: false,
+              parsed: parsed?.parsed ?? false,
+              tests: parsed?.tests ?? [],
             };
 
             reporter.printRunResult(result, runs);
@@ -125,6 +143,9 @@ export function registerTestCommand(program) {
             const failed = exitCode !== 0;
             const shouldKeep = (failed && options.keepOnFail) || options.keepAll;
 
+            // Parse test output if we have a runner
+            const parsed = runner ? parseTestOutput(runner, stdout) : null;
+
             const result = {
               runIndex: i,
               seed: runSeed,
@@ -134,6 +155,8 @@ export function registerTestCommand(program) {
               durationMs,
               workspacePath: workspace.root,
               kept: shouldKeep,
+              parsed: parsed?.parsed ?? false,
+              tests: parsed?.tests ?? [],
             };
 
             reporter.printRunResult(result, runs);
@@ -149,10 +172,32 @@ export function registerTestCommand(program) {
         // Restore source files after all in-place runs
         if (inPlace && lastManifest) {
           await engine.restoreAll(projectRoot, lastManifest);
-          console.log('\n  Source files restored to original state.');
+          reporter.log('\n  Source files restored to original state.');
         }
 
-        reporter.summarize(results, runs);
+        // Run flakiness analysis if we have parsed results
+        const analysis = runner ? analyzeFlakiness(results) : null;
+
+        if (jsonOutput) {
+          // JSON output for CI consumption
+          const output = {
+            version: 1,
+            baseSeed,
+            runs: results.map(r => ({
+              runIndex: r.runIndex,
+              seed: r.seed,
+              exitCode: r.exitCode,
+              durationMs: r.durationMs,
+              parsed: r.parsed,
+              totalPassed: r.tests.filter(t => t.status === 'passed').length,
+              totalFailed: r.tests.filter(t => t.status === 'failed').length,
+            })),
+            analysis: analysis ?? { totalTests: 0, flakyTests: [], stableTests: [], alwaysFailingTests: [] },
+          };
+          console.log(JSON.stringify(output));
+        } else {
+          reporter.summarize(results, runs);
+        }
 
         // Exit with failure if any run failed
         const anyFailed = results.some((r) => r.exitCode !== 0);
