@@ -43,18 +43,23 @@ export function createJavaScriptAdapter() {
     },
 
     inject(source, options) {
-      const { ast } = parseSource(source);
-      const { insertions, points } = computeInjections(ast, source, options);
-      const runtimeNeeded = points.length > 0;
+      try {
+        const { ast } = parseSource(source);
+        const { insertions, points } = computeInjections(ast, source, options);
+        const runtimeNeeded = points.length > 0;
 
-      if (runtimeNeeded) {
-        const importPath = computeRuntimeImportPath(options.filePath);
-        const imp = computeRuntimeImportInsertion(ast, source, importPath);
-        if (imp) insertions.push(imp);
+        if (runtimeNeeded) {
+          const importPath = computeRuntimeImportPath(options.filePath);
+          const imp = computeRuntimeImportInsertion(ast, source, importPath);
+          if (imp) insertions.push(imp);
+        }
+
+        const output = applyInsertions(source, insertions);
+        return { source: output, points, runtimeNeeded };
+      } catch (err) {
+        console.warn(`  Skipping ${options.filePath}: ${err.message}`);
+        return { source, points: [], runtimeNeeded: false };
       }
-
-      const output = applyInsertions(source, insertions);
-      return { source: output, points, runtimeNeeded };
     },
 
     remove(source) {

@@ -1,6 +1,6 @@
 {
   "name": "flake-monster",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Source-to-source test hardener that injects async delays to surface flaky tests",
   "type": "module",
   "bin": {

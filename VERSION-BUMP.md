@@ -10,3 +10,8 @@ When updating the version number, update **all** of these locations in `lib-repo
 - [ ] `index.html` — Hero version badge (`<span class="hero-version">`)
 
 Quick grep to verify: `grep -n "0\.X\.Y" index.html package.json`
+
+## Publish
+
+- [ ] Commit all changes
+- [ ] `npm publish` from `lib-repo/`
