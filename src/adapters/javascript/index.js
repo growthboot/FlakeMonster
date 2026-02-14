@@ -1,7 +1,7 @@
 import { fileURLToPath } from 'node:url';
 import { dirname, join, posix } from 'node:path';
 import { parseSource } from './parser.js';
-import { computeInjections, computeRuntimeImportInsertion, applyInsertions } from './injector.js';
+import { computeInjections, computeRuntimeImportInsertion, applyInsertions, MARKER_PREFIX } from './injector.js';
 import { recoverDelays, scanForRecovery } from './remover.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -43,6 +43,11 @@ export function createJavaScriptAdapter() {
     },
 
     inject(source, options) {
+      if (source.includes(MARKER_PREFIX)) {
+        console.warn(`  Skipping ${options.filePath}: already injected (restore first)`);
+        return { source, points: [], runtimeNeeded: false };
+      }
+
       try {
         const { ast } = parseSource(source);
         const { insertions, points } = computeInjections(ast, source, options);

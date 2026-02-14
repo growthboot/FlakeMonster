@@ -1,5 +1,15 @@
 import * as acorn from 'acorn';
-import { attachComments } from 'astravel';
+import { defaultTraveler, attachComments } from 'astravel';
+
+// Patch astravel bug: PropertyDefinition reuses MethodDefinition handler which
+// calls this.go(node.value) without a null guard. Uninitialized class fields
+// (e.g. `bar;`) have value: null, crashing the traversal.
+defaultTraveler.PropertyDefinition = function (node, state) {
+  this.go(node.key, state);
+  if (node.value != null) {
+    this.go(node.value, state);
+  }
+};
 
 /**
  * Parse JS source to ESTree AST with comments attached to nodes.

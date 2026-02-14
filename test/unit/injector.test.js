@@ -218,4 +218,40 @@ describe('JavaScript adapter, inject', () => {
 
     assert.strictEqual(result.points.length, 7, 'total: 3 top-level + 2 + 2 function body');
   });
+
+  it('handles classes with uninitialized fields (PropertyDefinition value: null)', async () => {
+    const source = await readFile(join(FIXTURES, 'class-fields.js'), 'utf-8');
+    const result = adapter.inject(source, {
+      filePath: 'test/fixtures/class-fields.js',
+      mode: 'light',
+      seed: 42,
+      delayConfig: { minMs: 0, maxMs: 50, distribution: 'uniform' },
+      skipTryCatch: false,
+      skipGenerators: true,
+    });
+
+    assert.ok(result.source.includes('__FlakeMonster__('), 'should inject delays');
+    // light mode: 1 top-level (before class) + 1 inside async loadUser
+    assert.strictEqual(result.points.length, 2, 'should have 2 injection points');
+  });
+
+  it('skips already-injected files (idempotency)', async () => {
+    const source = await readFile(join(FIXTURES, 'simple-async.js'), 'utf-8');
+    const opts = {
+      filePath: 'test/fixtures/simple-async.js',
+      mode: 'light',
+      seed: 42,
+      delayConfig: { minMs: 0, maxMs: 50, distribution: 'uniform' },
+      skipTryCatch: false,
+      skipGenerators: true,
+    };
+
+    const first = adapter.inject(source, opts);
+    assert.ok(first.points.length > 0, 'first injection should produce points');
+
+    // Second injection on already-injected source should be a no-op
+    const second = adapter.inject(first.source, opts);
+    assert.strictEqual(second.points.length, 0, 'second injection should produce zero points');
+    assert.strictEqual(second.source, first.source, 'source should be unchanged');
+  });
 });
