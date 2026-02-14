@@ -235,6 +235,28 @@ describe('JavaScript adapter, inject', () => {
     assert.strictEqual(result.points.length, 2, 'should have 2 injection points');
   });
 
+  it('places runtime import before a leading block comment (no existing imports)', async () => {
+    const source = await readFile(join(FIXTURES, 'leading-jsdoc.js'), 'utf-8');
+    const result = adapter.inject(source, {
+      filePath: 'test/fixtures/leading-jsdoc.js',
+      mode: 'light',
+      seed: 42,
+      delayConfig: { minMs: 0, maxMs: 50, distribution: 'uniform' },
+      skipTryCatch: false,
+      skipGenerators: true,
+    });
+
+    assert.ok(result.source.includes('__FlakeMonster__('), 'should contain delay calls');
+    assert.ok(result.runtimeNeeded, 'runtimeNeeded should be true');
+
+    // The import MUST come before the block comment, not inside it
+    const importIndex = result.source.indexOf("import { __FlakeMonster__ }");
+    const commentIndex = result.source.indexOf('/**');
+    assert.ok(importIndex >= 0, 'should have runtime import');
+    assert.ok(commentIndex >= 0, 'should still have the JSDoc comment');
+    assert.ok(importIndex < commentIndex, 'import must appear before the leading block comment');
+  });
+
   it('skips already-injected files (idempotency)', async () => {
     const source = await readFile(join(FIXTURES, 'simple-async.js'), 'utf-8');
     const opts = {

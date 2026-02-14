@@ -405,13 +405,20 @@ export function computeRuntimeImportInsertion(ast, source, runtimeImportPath) {
     }
   }
 
-  // Find the newline after the last import (or start of file)
-  let insertOffset = lastImportEnd;
-  while (insertOffset < source.length && source[insertOffset] !== '\n') {
-    insertOffset++;
-  }
-  if (insertOffset < source.length) {
-    insertOffset++; // past the \n
+  let insertOffset;
+  if (lastImportEnd === 0) {
+    // No existing imports — insert at the very start of the file
+    // (not after the first line, which may be inside a block comment)
+    insertOffset = 0;
+  } else {
+    // Find the newline after the last import
+    insertOffset = lastImportEnd;
+    while (insertOffset < source.length && source[insertOffset] !== '\n') {
+      insertOffset++;
+    }
+    if (insertOffset < source.length) {
+      insertOffset++; // past the \n
+    }
   }
 
   const text = `import { ${DELAY_OBJECT} } from '${runtimeImportPath}';\n`;
