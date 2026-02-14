@@ -23,15 +23,16 @@ export class InjectorEngine {
    * @param {string} rootDir - Directory to process (workspace or project root)
    * @param {string[]} globs - File patterns to process
    * @param {number} seed
+   * @param {string[]} [exclude=[]] - Glob patterns to exclude
    * @returns {Promise<Manifest>}
    */
-  async injectAll(rootDir, globs, seed) {
+  async injectAll(rootDir, globs, seed, exclude = []) {
     const manifest = new Manifest();
     manifest.seed = seed;
     manifest.mode = this.profile.mode;
 
     // Resolve globs to file list
-    const files = await fg(globs, { cwd: rootDir, absolute: false });
+    const files = await fg(globs, { cwd: rootDir, absolute: false, ignore: exclude });
 
     const adaptersUsed = new Set();
     let totalInjections = 0;

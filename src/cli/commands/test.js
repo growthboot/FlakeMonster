@@ -45,6 +45,7 @@ export function registerTestCommand(program) {
     .option('--max-delay <ms>', 'Maximum delay in milliseconds', '50')
     .option('-f, --format <format>', 'Output format: text or json', 'text')
     .option('--runner <runner>', 'Test runner: jest, node-test, tap, or auto', 'auto')
+    .option('-e, --exclude <patterns...>', 'Glob patterns to exclude (appends to config defaults)')
     .argument('[globs...]', 'File patterns to process', ['src/**/*.js'])
     .action(async (globs, options) => {
       try {
@@ -94,7 +95,7 @@ export function registerTestCommand(program) {
             }
 
             // Inject directly into source
-            const manifest = await engine.injectAll(projectRoot, globs, runSeed);
+            const manifest = await engine.injectAll(projectRoot, globs, runSeed, merged.exclude);
             const flakeDir = getFlakeMonsterDir(projectRoot);
             await manifest.save(flakeDir);
             lastManifest = manifest;
@@ -131,7 +132,7 @@ export function registerTestCommand(program) {
             await workspace.create();
 
             // Inject
-            const manifest = await engine.injectAll(workspace.root, globs, runSeed);
+            const manifest = await engine.injectAll(workspace.root, globs, runSeed, merged.exclude);
             const flakeDir = getFlakeMonsterDir(workspace.root);
             await manifest.save(flakeDir);
 

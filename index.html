@@ -31,6 +31,38 @@
             localStorage.setItem('theme', next);
           });
         });
+        var copyTexts = {
+          npx: 'npx flake-monster test --cmd "npm test"',
+          npm: 'npm install flake-monster',
+          cdn: '<script type="module" src="https://unpkg.com/flake-monster@0.3.0"><\/script>',
+          download: 'curl -L https://registry.npmjs.org/flake-monster/-/flake-monster-0.3.0.tgz | tar xz'
+        };
+        var activeTab = 'npx';
+        var tabs = document.getElementById('hero-install-tabs');
+        var cmdBox = document.getElementById('hero-install-cmd');
+        var copyBtn = document.getElementById('hero-copy-btn');
+        if (tabs) {
+          tabs.addEventListener('click', function(e) {
+            var btn = e.target.closest('[data-tab]');
+            if (!btn) return;
+            activeTab = btn.dataset.tab;
+            tabs.querySelectorAll('.hero-tab').forEach(function(t) { t.classList.remove('active'); });
+            btn.classList.add('active');
+            cmdBox.querySelectorAll('.hero-cmd-panel').forEach(function(p) { p.classList.remove('active'); });
+            cmdBox.querySelector('[data-panel="' + activeTab + '"]').classList.add('active');
+          });
+        }
+        if (copyBtn) {
+          copyBtn.addEventListener('click', function() {
+            navigator.clipboard.writeText(copyTexts[activeTab]);
+            copyBtn.classList.add('copied');
+            copyBtn.title = 'Copied!';
+            setTimeout(function() {
+              copyBtn.classList.remove('copied');
+              copyBtn.title = 'Copy to clipboard';
+            }, 2000);
+          });
+        }
       });
     })();
   </script>
@@ -183,6 +215,38 @@
           <circle class="smoke-p" cx="390" cy="148" r="2" fill="#aaa" style="--sd:0.25s"/>
         </g>
       </svg>
+      <div class="hero-install">
+        <div class="hero-install-tabs" id="hero-install-tabs">
+          <button class="hero-tab active" data-tab="npx">npx</button>
+          <button class="hero-tab" data-tab="npm">npm</button>
+          <button class="hero-tab" data-tab="cdn">CDN</button>
+          <button class="hero-tab" data-tab="download">Download</button>
+        </div>
+        <div class="hero-install-cmd" id="hero-install-cmd">
+          <div class="hero-cmd-panel active" data-panel="npx">
+            <span class="hero-prompt">$</span> npx flake-monster test --cmd <span class="hero-str">"npm test"</span>
+          </div>
+          <div class="hero-cmd-panel" data-panel="npm">
+            <span class="hero-prompt">$</span> npm install flake-monster
+          </div>
+          <div class="hero-cmd-panel" data-panel="cdn">
+            <span class="hero-prompt">&lt;</span><span class="syn-kw">script</span> <span class="syn-id">type</span>=<span class="hero-str">"module"</span> <span class="syn-id">src</span>=<span class="hero-str">"https://unpkg.com/flake-monster@0.3.0"</span><span class="hero-prompt">&gt;</span>
+          </div>
+          <div class="hero-cmd-panel" data-panel="download">
+            <span class="hero-prompt">$</span> curl -L registry.npmjs.org/flake-monster/-/flake-monster-0.3.0.tgz | tar xz
+          </div>
+          <button class="hero-copy-btn" id="hero-copy-btn" title="Copy to clipboard">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="5" y="5" width="9" height="9" rx="1.5" stroke="currentColor" stroke-width="1.4"/><path d="M11 5V3.5A1.5 1.5 0 009.5 2h-6A1.5 1.5 0 002 3.5v6A1.5 1.5 0 003.5 11H5" stroke="currentColor" stroke-width="1.4"/></svg>
+          </button>
+        </div>
+        <div class="hero-install-links">
+          <a href="https://www.npmjs.com/package/flake-monster" class="hero-link">npm</a>
+          <span class="hero-link-sep">&middot;</span>
+          <a href="https://github.com/growthboot/FlakeMonster" class="hero-link">GitHub</a>
+          <span class="hero-link-sep">&middot;</span>
+          <span class="hero-version">v0.3.0</span>
+        </div>
+      </div>
     </div>
   </section>
 
@@ -331,7 +395,7 @@
   <!-- CI Section -->
   <section id="ci-section">
     <div class="ci-header">
-      <span class="ci-badge">Coming soon</span>
+      <span class="ci-badge">New</span>
       <h2>FlakeMonster CI</h2>
       <p class="ci-subtitle">Catch flaky tests on every pull request. Automatically.</p>
     </div>
@@ -496,8 +560,8 @@
         <p class="pricing-desc">Full CLI with inject, test, and restore. Run locally, run in CI, run anywhere.</p>
         <ul class="pricing-features">
           <li>Full CLI &amp; GitHub Action</li>
-          <li>Dashboard ,  1 repo</li>
-          <li>7-day trend history</li>
+          <li>50 CI checks per month</li>
+          <li>PR comments with results</li>
           <li>Community support</li>
         </ul>
         <a href="https://github.com/growthboot/FlakeMonster" class="pricing-btn pricing-btn-secondary">
@@ -525,12 +589,12 @@
         </div>
         <p class="pricing-desc">For teams that need visibility across every repo. Track trends, get alerted, and stop flaky tests before they spread.</p>
         <ul class="pricing-features">
-          <li>Unlimited repos on dashboard</li>
-          <li>90-day trend history</li>
-          <li>Slack &amp; email alerts</li>
+          <li>Unlimited CI checks</li>
           <li>Priority support</li>
+          <li>Everything in Free</li>
+          <li>Cancel anytime</li>
         </ul>
-        <span class="pricing-btn pricing-btn-primary pricing-btn-disabled">Coming soon</span>
+        <a href="pricing.html" class="pricing-btn pricing-btn-primary">Get started</a>
       </div>
     </div>
   </section>

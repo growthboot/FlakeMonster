@@ -53,5 +53,8 @@ export function mergeWithCliOptions(config, cliOptions) {
   if (cliOptions.keepOnFail) merged.keepOnFail = true;
   if (cliOptions.keepAll) merged.keepAll = true;
   if (cliOptions.skipTryCatch) merged.skipTryCatch = true;
+  if (cliOptions.exclude) {
+    merged.exclude = [...new Set([...merged.exclude, ...cliOptions.exclude])];
+  }
   return merged;
 }

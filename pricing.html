@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FlakeMonster CI — Get Started</title>
+  <link rel="icon" type="image/svg+xml" href="website/logo.svg">
+  <link rel="stylesheet" href="website/styles.css">
+
+  <script>
+    (function() {
+      var t = localStorage.getItem('theme');
+      if (!t) t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-theme', t);
+      document.addEventListener('DOMContentLoaded', function() {
+        document.querySelectorAll('[data-theme-toggle]').forEach(function(btn) {
+          btn.addEventListener('click', function() {
+            var next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', next);
+            localStorage.setItem('theme', next);
+          });
+        });
+      });
+    })();
+  </script>
+</head>
+<body>
+
+  <!-- Top Nav -->
+  <nav class="top-nav">
+    <div class="top-nav-inner">
+      <a href="index.html" class="nav-brand">FlakeMonster</a>
+      <div class="nav-links">
+        <a href="index.html#ci-section">CI</a>
+        <a href="index.html#pricing-section">Pricing</a>
+        <a href="https://github.com/growthboot/FlakeMonster">GitHub</a>
+        <button class="theme-toggle" data-theme-toggle aria-label="Toggle dark mode"></button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Header -->
+  <section class="pricing-page-header">
+    <h1>Get Started with FlakeMonster CI</h1>
+    <p>Register your repo to get an API key, then add it to your GitHub Actions workflow.</p>
+  </section>
+
+  <!-- Register -->
+  <section id="register" class="pricing-form-section">
+    <div class="pricing-form-card">
+      <div class="pricing-form-card-header">
+        <h2>1. Get your API key</h2>
+        <p>Enter your GitHub repo details. You'll get a free API key with 50 checks/month.</p>
+      </div>
+      <form id="register-form">
+        <div class="pricing-form-row">
+          <div class="pricing-form-field">
+            <label for="reg-owner">GitHub owner</label>
+            <input type="text" id="reg-owner" placeholder="user-or-org" required>
+          </div>
+          <div class="pricing-form-field">
+            <label for="reg-repo">Repository</label>
+            <input type="text" id="reg-repo" placeholder="repo-name" required>
+          </div>
+        </div>
+        <button type="submit" class="pricing-btn pricing-btn-primary" id="reg-btn">Generate API Key</button>
+        <div class="pricing-form-error" id="reg-error"></div>
+      </form>
+
+      <div class="pricing-form-result" id="reg-result">
+        <label>Your API Key</label>
+        <div class="pricing-key-display">
+          <code id="reg-key"></code>
+          <button type="button" class="pricing-copy-btn" id="copy-btn">Copy</button>
+        </div>
+        <div class="pricing-setup-steps">
+          <h3>Setup</h3>
+          <ol>
+            <li>Go to your repo &rarr; <strong>Settings</strong> &rarr; <strong>Secrets and variables</strong> &rarr; <strong>Actions</strong></li>
+            <li>Click <strong>New repository secret</strong></li>
+            <li>Name: <code>FLAKE_MONSTER_API_KEY</code></li>
+            <li>Value: paste your key above</li>
+            <li>Add this to your workflow:
+              <pre class="pricing-setup-code"><span class="syn-pun">-</span> <span class="syn-kw">uses</span><span class="syn-pun">:</span> <span class="syn-str">flake-monster/ci@v1</span>
+  <span class="syn-kw">with</span><span class="syn-pun">:</span>
+    <span class="syn-kw">test-command</span><span class="syn-pun">:</span> <span class="syn-str">npm test</span>
+    <span class="syn-kw">api-key</span><span class="syn-pun">:</span> <span class="syn-str">${{ secrets.FLAKE_MONSTER_API_KEY }}</span></pre>
+            </li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Upgrade -->
+  <section id="upgrade" class="pricing-form-section">
+    <div class="pricing-form-card">
+      <div class="pricing-form-card-header">
+        <h2>Upgrade to Pro</h2>
+        <p>Unlimited checks for $29/month. Enter your existing API key to upgrade.</p>
+      </div>
+      <form id="upgrade-form">
+        <div class="pricing-form-row">
+          <div class="pricing-form-field" style="flex:1">
+            <label for="up-apikey">API Key</label>
+            <input type="text" id="up-apikey" placeholder="fm_abc123..." required>
+          </div>
+        </div>
+        <button type="submit" class="pricing-btn pricing-btn-primary" id="up-btn">Continue to Checkout</button>
+        <div class="pricing-form-error" id="up-error"></div>
+      </form>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer>
+    <div class="footer-inner" style="padding-top:32px">
+      <div class="footer-bottom">
+        <span>CLI licensed under MIT</span>
+        <span class="footer-sep">&middot;</span>
+        <a href="index.html" style="color:var(--accent);text-decoration:none">Back to FlakeMonster</a>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    // TODO: Replace with your deployed Firebase project URL
+    const CLOUD_API = 'https://flake-monster.web.app';
+
+    // ── Register ──
+    const regForm = document.getElementById('register-form');
+    const regBtn = document.getElementById('reg-btn');
+    const regError = document.getElementById('reg-error');
+    const regResult = document.getElementById('reg-result');
+    const regKey = document.getElementById('reg-key');
+    const copyBtn = document.getElementById('copy-btn');
+
+    regForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      regError.style.display = 'none';
+      regResult.style.display = 'none';
+      regBtn.disabled = true;
+      regBtn.textContent = 'Generating...';
+
+      try {
+        const res = await fetch(`${CLOUD_API}/api/register`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            owner: document.getElementById('reg-owner').value.trim(),
+            repo: document.getElementById('reg-repo').value.trim(),
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Registration failed');
+
+        regKey.textContent = data.apiKey;
+        regResult.style.display = 'block';
+      } catch (err) {
+        regError.textContent = err.message;
+        regError.style.display = 'block';
+      } finally {
+        regBtn.disabled = false;
+        regBtn.textContent = 'Generate API Key';
+      }
+    });
+
+    copyBtn.addEventListener('click', () => {
+      navigator.clipboard.writeText(regKey.textContent);
+      copyBtn.textContent = 'Copied!';
+      setTimeout(() => { copyBtn.textContent = 'Copy'; }, 2000);
+    });
+
+    // ── Upgrade ──
+    const upForm = document.getElementById('upgrade-form');
+    const upBtn = document.getElementById('up-btn');
+    const upError = document.getElementById('up-error');
+
+    upForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      upError.style.display = 'none';
+      upBtn.disabled = true;
+      upBtn.textContent = 'Redirecting...';
+
+      try {
+        const res = await fetch(`${CLOUD_API}/api/checkout`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            apiKey: document.getElementById('up-apikey').value.trim(),
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Checkout failed');
+
+        window.location.href = data.url;
+      } catch (err) {
+        upError.textContent = err.message;
+        upError.style.display = 'block';
+        upBtn.disabled = false;
+        upBtn.textContent = 'Continue to Checkout';
+      }
+    });
+
+    // ── Post-Stripe redirect banners ──
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('upgraded') === '1') {
+      const b = document.createElement('div');
+      b.className = 'pricing-banner pricing-banner-success';
+      b.textContent = 'Upgrade successful! Your API key now has unlimited checks.';
+      document.body.prepend(b);
+    }
+    if (params.get('cancelled') === '1') {
+      const b = document.createElement('div');
+      b.className = 'pricing-banner pricing-banner-error';
+      b.textContent = 'Checkout cancelled. You can try again anytime.';
+      document.body.prepend(b);
+    }
+  </script>
+
+</body>
+</html>

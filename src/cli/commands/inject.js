@@ -18,6 +18,7 @@ export function registerInjectCommand(program) {
     .option('--workspace', 'Create a workspace copy instead of modifying files in-place', false)
     .option('--min-delay <ms>', 'Minimum delay in milliseconds', '0')
     .option('--max-delay <ms>', 'Maximum delay in milliseconds', '50')
+    .option('-e, --exclude <patterns...>', 'Glob patterns to exclude (appends to config defaults)')
     .action(async (globs, options) => {
       try {
         const projectRoot = resolve('.');
@@ -41,7 +42,7 @@ export function registerInjectCommand(program) {
           console.log(`Workspace created: ${workspace.root}`);
         }
 
-        const manifest = await engine.injectAll(targetDir, globs, seed);
+        const manifest = await engine.injectAll(targetDir, globs, seed, merged.exclude);
         const flakeDir = getFlakeMonsterDir(useWorkspace ? targetDir : projectRoot);
         await manifest.save(flakeDir);
 
