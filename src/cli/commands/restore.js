@@ -65,7 +65,12 @@ export function registerRestoreCommand(program) {
         const mode = manifest ? manifest.mode : (config.mode || 'medium');
         const profile = FlakeProfile.fromConfig({ ...config, mode });
         const engine = new InjectorEngine(registry, profile);
-        const globs = config.include || ['**/*.js', '**/*.mjs'];
+        // When no manifest exists, recovery must scan broadly to find all
+        // leftover injections — the narrow config.include default (e.g. src/**)
+        // may not cover files that were injected with custom CLI globs.
+        const globs = manifest
+          ? (config.include || ['**/*.js', '**/*.mjs'])
+          : ['**/*.js', '**/*.mjs'];
         const exclude = config.exclude || ['**/node_modules/**', '**/dist/**', '**/build/**'];
 
         if (!manifest && !options.recover) {

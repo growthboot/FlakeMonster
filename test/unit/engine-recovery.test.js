@@ -156,6 +156,78 @@ describe('Engine manifest-free recovery (scanByGlobs / restoreByGlobs)', () => {
     assert.ok(!runtimeExists, 'runtime file should be deleted');
   });
 
+  it('scanByGlobs with broad globs finds injections outside src/', async () => {
+    // Simulate a project like FSCode: code lives in components/, modules/, etc.
+    await mkdir(join(tmpDir, 'components', 'App'), { recursive: true });
+    await mkdir(join(tmpDir, 'modules', 'Store'), { recursive: true });
+
+    await writeFile(
+      join(tmpDir, 'components', 'App', 'App.js'),
+      [
+        'import { __FlakeMonster__ } from "../../flake-monster.runtime.js";',
+        'async function connectedCallback() {',
+        '  /* @flake-monster[jt92-se2j!] v1 */',
+        '  await __FlakeMonster__(23);',
+        '  this.render();',
+        '}',
+      ].join('\n'),
+    );
+
+    await writeFile(
+      join(tmpDir, 'modules', 'Store', 'Store.js'),
+      [
+        'import { __FlakeMonster__ } from "../../flake-monster.runtime.js";',
+        'export async function init() {',
+        '  /* @flake-monster[jt92-se2j!] v1 */',
+        '  await __FlakeMonster__(47);',
+        '  return {};',
+        '}',
+      ].join('\n'),
+    );
+
+    // Narrow glob (src/**) should find nothing — these files aren't in src/
+    const narrowResults = await engine.scanByGlobs(tmpDir, ['src/**/*.js']);
+    assert.strictEqual(narrowResults.length, 0, 'narrow src glob misses non-src files');
+
+    // Broad glob (**/*.js) should find both
+    const broadResults = await engine.scanByGlobs(tmpDir, ['**/*.js'], ['**/node_modules/**']);
+    assert.strictEqual(broadResults.length, 2, 'broad glob finds files outside src/');
+    const files = broadResults.map((r) => r.file).sort();
+    assert.deepStrictEqual(files, ['components/App/App.js', 'modules/Store/Store.js']);
+  });
+
+  it('restoreByGlobs recovers files outside src/ with broad globs', async () => {
+    await mkdir(join(tmpDir, 'behaviors', 'Drag'), { recursive: true });
+
+    const injected = [
+      'import { __FlakeMonster__ } from "../../flake-monster.runtime.js";',
+      'export async function onDrag(e) {',
+      '  /* @flake-monster[jt92-se2j!] v1 */',
+      '  await __FlakeMonster__(15);',
+      '  this.update(e);',
+      '}',
+    ].join('\n');
+
+    await writeFile(join(tmpDir, 'behaviors', 'Drag', 'Drag.js'), injected);
+    await writeFile(
+      join(tmpDir, 'flake-monster.runtime.js'),
+      'export const __FlakeMonster__ = (ms) => new Promise(r => setTimeout(r, ms));\n',
+    );
+
+    // Narrow glob misses it
+    const narrow = await engine.restoreByGlobs(tmpDir, ['src/**/*.js']);
+    assert.strictEqual(narrow.filesRestored, 0, 'narrow glob restores nothing');
+
+    // Broad glob recovers it
+    const broad = await engine.restoreByGlobs(tmpDir, ['**/*.js'], ['**/node_modules/**']);
+    assert.strictEqual(broad.filesRestored, 1);
+    assert.ok(broad.injectionsRemoved > 0);
+
+    const cleaned = await readFile(join(tmpDir, 'behaviors', 'Drag', 'Drag.js'), 'utf-8');
+    assert.ok(!cleaned.includes('__FlakeMonster__'), 'injection removed');
+    assert.ok(cleaned.includes('this.update(e)'), 'original code preserved');
+  });
+
   it('end-to-end: inject via engine, then recover without manifest', async () => {
     // Write original source files
     const originalA = [
