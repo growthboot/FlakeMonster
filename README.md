@@ -4,11 +4,11 @@ A source-to-source test hardener that finds flaky tests by injecting async delay
 
 ## Why
 
-Automated tests run unrealistically fast. API calls resolve instantly against local mocks, database queries return in microseconds, commands are fired fasters than you can blink and eye, and every async operation completes in the exact same order every time. In production, none of that is true. Network latency varies, services respond unpredictably, computer performance varies, devices glitch, and users interact at human speed. Tests that pass in this perfectly-timed environment can hide real bugs, race conditions, missing `await`s, and unguarded state mutations, that only surface when timing shifts even slightly.
+Automated tests run unrealistically fast. API calls resolve instantly against local mocks, database queries return in microseconds, commands are fired faster than you can blink an eye, and every async operation completes in the exact same order every time. In production, none of that is true. Network latency varies, services respond unpredictably, computer performance varies, devices glitch, and users interact at human speed. Tests that pass in this perfectly-timed environment can hide real bugs, race conditions, missing `await`s, and unguarded state mutations, that only surface when timing shifts even slightly.
 
 FlakeMonster closes that gap. It **deliberately injects async delays** between statements in your `async` functions and at the module top level (using top-level `await`), forcing the event loop to yield where it normally wouldn't. Tests that depend on everything happening in a precise order will start failing, and that's the point. A test that only passes because it runs too fast to trigger its own race condition **should not be passing**.
 
-The goal isn't to slow your tests down. The goal is to increasing flake likelyhood random timing glitches so that you can catch the test flakes on your first tests.
+The goal isn't to slow your tests down. The goal is to increase the likelihood of timing glitches surfacing so you can catch flakes before they hit CI.
 
 Every run uses a **deterministic seed**, so when a test fails you get output like:
 

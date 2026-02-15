@@ -103,6 +103,90 @@ export class InjectorEngine {
   }
 
   /**
+   * Scan files by glob patterns for recovery matches (no manifest needed).
+   * Discovers files via fast-glob and routes them through registered adapters.
+   * @param {string} rootDir
+   * @param {string[]} globs - File patterns to scan
+   * @param {string[]} [exclude=[]] - Glob patterns to exclude
+   * @returns {Promise<{ file: string, matches: { line: number, content: string, reason: string }[] }[]>}
+   */
+  async scanByGlobs(rootDir, globs, exclude = []) {
+    const results = [];
+    const files = await fg(globs, { cwd: rootDir, absolute: false, ignore: exclude });
+
+    for (const filePath of files) {
+      const adapter = this.registry.getAdapterForFile(filePath);
+      if (!adapter || !adapter.scan) continue;
+
+      const absPath = join(rootDir, filePath);
+      let source;
+      try {
+        source = await readFile(absPath, 'utf-8');
+      } catch {
+        continue;
+      }
+
+      const matches = adapter.scan(source);
+      if (matches.length > 0) {
+        results.push({ file: filePath, matches });
+      }
+    }
+
+    return results;
+  }
+
+  /**
+   * Remove injections from files discovered by glob patterns (no manifest needed).
+   * @param {string} rootDir
+   * @param {string[]} globs - File patterns to process
+   * @param {string[]} [exclude=[]] - Glob patterns to exclude
+   * @returns {Promise<{ filesRestored: number, injectionsRemoved: number }>}
+   */
+  async restoreByGlobs(rootDir, globs, exclude = []) {
+    let filesRestored = 0;
+    let injectionsRemoved = 0;
+
+    const files = await fg(globs, { cwd: rootDir, absolute: false, ignore: exclude });
+
+    for (const filePath of files) {
+      const adapter = this.registry.getAdapterForFile(filePath);
+      if (!adapter) continue;
+
+      const absPath = join(rootDir, filePath);
+      let source;
+      try {
+        source = await readFile(absPath, 'utf-8');
+      } catch {
+        continue;
+      }
+
+      const result = adapter.remove(source);
+      if (result.removedCount === 0) continue;
+
+      await writeFile(absPath, result.source, 'utf-8');
+      filesRestored++;
+      injectionsRemoved += result.removedCount;
+    }
+
+    // Clean up runtime files
+    const { unlink } = await import('node:fs/promises');
+    const runtimeFiles = await fg(['**/flake-monster.runtime.*'], {
+      cwd: rootDir,
+      absolute: false,
+      ignore: exclude,
+    });
+    for (const rf of runtimeFiles) {
+      try {
+        await unlink(join(rootDir, rf));
+      } catch {
+        // Already gone
+      }
+    }
+
+    return { filesRestored, injectionsRemoved };
+  }
+
+  /**
    * Remove all injections from files listed in the manifest.
    * @param {string} rootDir
    * @param {Manifest} manifest

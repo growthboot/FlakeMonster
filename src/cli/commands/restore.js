@@ -61,20 +61,49 @@ export function registerRestoreCommand(program) {
         const flakeDir = getFlakeMonsterDir(targetDir);
 
         const manifest = await Manifest.load(flakeDir);
-        if (!manifest) {
-          console.log('No manifest found. Nothing to restore.');
-          console.log(`Looked in: ${flakeDir}`);
-          return;
-        }
 
-        const profile = FlakeProfile.fromConfig({ ...config, mode: manifest.mode });
+        const mode = manifest ? manifest.mode : (config.mode || 'medium');
+        const profile = FlakeProfile.fromConfig({ ...config, mode });
         const engine = new InjectorEngine(registry, profile);
+        const globs = config.include || ['**/*.js', '**/*.mjs'];
+        const exclude = config.exclude || ['**/node_modules/**', '**/dist/**', '**/build/**'];
+
+        if (!manifest && !options.recover) {
+          // No manifest — quick-scan to see if there's leftover injected code
+          const scanResults = await engine.scanByGlobs(targetDir, globs, exclude);
+
+          if (scanResults.length === 0) {
+            console.log('No manifest found and no injected code detected. Nothing to restore.');
+            return;
+          }
+
+          // Injected code found — offer interactive recovery
+          let totalMatches = 0;
+          for (const { matches } of scanResults) totalMatches += matches.length;
+
+          console.log(`No manifest found, but detected ${totalMatches} injected line(s) across ${scanResults.length} file(s).`);
+          const proceed = await confirm('Run recovery to clean them up? (y/N) ');
+          if (!proceed) {
+            console.log('Aborted. No files were modified.');
+            return;
+          }
+
+          // User confirmed — fall through to recovery
+          options.recover = true;
+        }
 
         if (options.recover) {
           // Recovery mode: scan first, show results, then confirm
-          console.log('Recovery mode: scanning for injected lines...');
+          // Works with or without a manifest
+          let scanResults;
 
-          const scanResults = await engine.scanAll(targetDir, manifest);
+          if (manifest) {
+            console.log('Recovery mode: scanning manifest files for injected lines...');
+            scanResults = await engine.scanAll(targetDir, manifest);
+          } else {
+            console.log('Scanning all source files...');
+            scanResults = await engine.scanByGlobs(targetDir, globs, exclude);
+          }
 
           if (scanResults.length === 0) {
             console.log('No injected lines found. Files appear clean.');
@@ -89,10 +118,14 @@ export function registerRestoreCommand(program) {
             return;
           }
 
-          const { filesRestored, injectionsRemoved } = await engine.restoreAll(targetDir, manifest);
-          await Manifest.delete(flakeDir);
-
-          console.log(`\n  Recovered ${filesRestored} file(s), removed ${injectionsRemoved} line(s)`);
+          if (manifest) {
+            const { filesRestored, injectionsRemoved } = await engine.restoreAll(targetDir, manifest);
+            await Manifest.delete(flakeDir);
+            console.log(`\n  Recovered ${filesRestored} file(s), removed ${injectionsRemoved} line(s)`);
+          } else {
+            const { filesRestored, injectionsRemoved } = await engine.restoreByGlobs(targetDir, globs, exclude);
+            console.log(`\n  Recovered ${filesRestored} file(s), removed ${injectionsRemoved} line(s)`);
+          }
         } else {
           const { filesRestored, injectionsRemoved } = await engine.restoreAll(targetDir, manifest);
           await Manifest.delete(flakeDir);
