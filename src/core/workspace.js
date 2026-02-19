@@ -1,6 +1,6 @@
 import { rm, mkdir, readdir, copyFile, stat } from 'node:fs/promises';
 import { join, relative, basename } from 'node:path';
-import { execSync } from 'node:child_process';
+import { execSync, spawn } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 
 const FLAKE_MONSTER_DIR = '.flake-monster';
@@ -121,6 +121,19 @@ export class ProjectWorkspace {
   }
 
   /**
+   * Execute a shell command inside the workspace asynchronously.
+   * Unlike exec(), this does not block the event loop, allowing spinners to animate.
+   * @param {string} command
+   * @param {Object} [options]
+   * @param {number} [options.timeout] - ms before killing the process
+   * @param {Object} [options.env] - additional env vars
+   * @returns {Promise<{ exitCode: number, stdout: string, stderr: string }>}
+   */
+  execAsync(command, options = {}) {
+    return execAsync(command, this._root, options);
+  }
+
+  /**
    * Delete the workspace directory.
    */
   async destroy() {
@@ -136,4 +149,56 @@ export class ProjectWorkspace {
  */
 export function getFlakeMonsterDir(projectRoot) {
   return join(projectRoot, FLAKE_MONSTER_DIR);
+}
+
+/**
+ * Execute a shell command asynchronously without blocking the event loop.
+ * @param {string} command
+ * @param {string} cwd - Working directory
+ * @param {Object} [options]
+ * @param {number} [options.timeout] - ms before killing the process
+ * @param {Object} [options.env] - additional env vars
+ * @returns {Promise<{ exitCode: number, stdout: string, stderr: string }>}
+ */
+export function execAsync(command, cwd, options = {}) {
+  return new Promise((resolve) => {
+    const { timeout, env } = options;
+    const child = spawn(command, {
+      cwd,
+      shell: true,
+      stdio: ['pipe', 'pipe', 'pipe'],
+      env: { ...process.env, ...env },
+    });
+
+    const stdoutChunks = [];
+    const stderrChunks = [];
+
+    child.stdout.on('data', (chunk) => stdoutChunks.push(chunk));
+    child.stderr.on('data', (chunk) => stderrChunks.push(chunk));
+
+    let timer;
+    if (timeout) {
+      timer = setTimeout(() => {
+        child.kill('SIGTERM');
+      }, timeout);
+    }
+
+    child.on('close', (code) => {
+      if (timer) clearTimeout(timer);
+      resolve({
+        exitCode: code ?? 1,
+        stdout: Buffer.concat(stdoutChunks).toString('utf-8'),
+        stderr: Buffer.concat(stderrChunks).toString('utf-8'),
+      });
+    });
+
+    child.on('error', (err) => {
+      if (timer) clearTimeout(timer);
+      resolve({
+        exitCode: 1,
+        stdout: Buffer.concat(stdoutChunks).toString('utf-8'),
+        stderr: err.message,
+      });
+    });
+  });
 }

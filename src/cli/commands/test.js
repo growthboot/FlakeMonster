@@ -1,33 +1,16 @@
 import { resolve } from 'node:path';
-import { execSync } from 'node:child_process';
 import { AdapterRegistry } from '../../adapters/registry.js';
 import { createJavaScriptAdapter } from '../../adapters/javascript/index.js';
 import { InjectorEngine } from '../../core/engine.js';
 import { FlakeProfile } from '../../core/profile.js';
 import { parseSeed, deriveSeed } from '../../core/seed.js';
-import { ProjectWorkspace, getFlakeMonsterDir } from '../../core/workspace.js';
+import { ProjectWorkspace, getFlakeMonsterDir, execAsync } from '../../core/workspace.js';
 import { loadConfig, mergeWithCliOptions } from '../../core/config.js';
 import { Reporter } from '../../core/reporter.js';
 import { detectRunner, parseTestOutput } from '../../core/parsers/index.js';
 import { analyzeFlakiness } from '../../core/flake-analyzer.js';
-
-function execInDir(command, cwd) {
-  try {
-    const stdout = execSync(command, {
-      cwd,
-      env: { ...process.env },
-      encoding: 'utf-8',
-      stdio: ['pipe', 'pipe', 'pipe'],
-    });
-    return { exitCode: 0, stdout, stderr: '' };
-  } catch (err) {
-    return {
-      exitCode: err.status ?? 1,
-      stdout: err.stdout || '',
-      stderr: err.stderr || '',
-    };
-  }
-}
+import * as terminal from '../terminal.js';
+import { Spinner } from '../terminal.js';
 
 export function registerTestCommand(program) {
   program
@@ -68,7 +51,7 @@ export function registerTestCommand(program) {
         const registry = new AdapterRegistry();
         registry.register(createJavaScriptAdapter());
         const engine = new InjectorEngine(registry, profile);
-        const reporter = new Reporter({ quiet: jsonOutput });
+        const reporter = new Reporter({ quiet: jsonOutput, terminal });
 
         reporter.log(`FlakeMonster test harness`);
         reporter.log(`  Runs: ${runs} | Mode: ${profile.mode} | Base seed: ${baseSeed}`);
@@ -82,6 +65,7 @@ export function registerTestCommand(program) {
         }
         reporter.log('');
 
+        const harnessTotalStart = Date.now();
         const results = [];
         let lastManifest = null;
 
@@ -99,11 +83,20 @@ export function registerTestCommand(program) {
             const flakeDir = getFlakeMonsterDir(projectRoot);
             await manifest.save(flakeDir);
             lastManifest = manifest;
+            reporter.printInjectionStats(manifest);
 
-            // Run tests in project root
+            // Run tests with spinner
+            const spinner = new Spinner(`Run ${i + 1}/${runs}  seed=${runSeed}`);
+            if (!reporter.quiet) spinner.start();
+
+            let exitCode, stdout, stderr, durationMs;
             const start = Date.now();
-            const { exitCode, stdout, stderr } = execInDir(testCmd, projectRoot);
-            const durationMs = Date.now() - start;
+            try {
+              ({ exitCode, stdout, stderr } = await execAsync(testCmd, projectRoot));
+              durationMs = Date.now() - start;
+            } finally {
+              if (!reporter.quiet) spinner.stop();
+            }
 
             // Parse test output if we have a runner
             const parsed = runner ? parseTestOutput(runner, stdout) : null;
@@ -123,6 +116,10 @@ export function registerTestCommand(program) {
 
             reporter.printRunResult(result, runs);
             results.push(result);
+
+            if (i < runs - 1) {
+              reporter.printProgressTally(results, runs);
+            }
           } else {
             // Create workspace
             const workspace = new ProjectWorkspace({
@@ -135,11 +132,20 @@ export function registerTestCommand(program) {
             const manifest = await engine.injectAll(workspace.root, globs, runSeed, merged.exclude);
             const flakeDir = getFlakeMonsterDir(workspace.root);
             await manifest.save(flakeDir);
+            reporter.printInjectionStats(manifest);
 
-            // Run tests
+            // Run tests with spinner
+            const spinner = new Spinner(`Run ${i + 1}/${runs}  seed=${runSeed}`);
+            if (!reporter.quiet) spinner.start();
+
+            let exitCode, stdout, stderr, durationMs;
             const start = Date.now();
-            const { exitCode, stdout, stderr } = workspace.exec(testCmd);
-            const durationMs = Date.now() - start;
+            try {
+              ({ exitCode, stdout, stderr } = await workspace.execAsync(testCmd));
+              durationMs = Date.now() - start;
+            } finally {
+              if (!reporter.quiet) spinner.stop();
+            }
 
             const failed = exitCode !== 0;
             const shouldKeep = (failed && options.keepOnFail) || options.keepAll;
@@ -163,6 +169,10 @@ export function registerTestCommand(program) {
             reporter.printRunResult(result, runs);
             results.push(result);
 
+            if (i < runs - 1) {
+              reporter.printProgressTally(results, runs);
+            }
+
             // Cleanup
             if (!shouldKeep) {
               await workspace.destroy();
@@ -172,12 +182,13 @@ export function registerTestCommand(program) {
 
         // Restore source files after all in-place runs
         if (inPlace && lastManifest) {
-          await engine.restoreAll(projectRoot, lastManifest);
-          reporter.log('\n  Source files restored to original state.');
+          const restoreResult = await engine.restoreAll(projectRoot, lastManifest);
+          reporter.printRestorationResult(restoreResult);
         }
 
         // Run flakiness analysis if we have parsed results
         const analysis = runner ? analyzeFlakiness(results) : null;
+        const totalElapsedMs = Date.now() - harnessTotalStart;
 
         if (jsonOutput) {
           // JSON output for CI consumption
@@ -197,7 +208,7 @@ export function registerTestCommand(program) {
           };
           console.log(JSON.stringify(output));
         } else {
-          reporter.summarize(results, runs);
+          reporter.summarize(results, runs, analysis, totalElapsedMs);
         }
 
         // Exit with failure if any run failed
