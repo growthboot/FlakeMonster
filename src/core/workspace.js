@@ -158,11 +158,13 @@ export function getFlakeMonsterDir(projectRoot) {
  * @param {Object} [options]
  * @param {number} [options.timeout] - ms before killing the process
  * @param {Object} [options.env] - additional env vars
+ * @param {Function} [options.onStdout] - Callback for each stdout chunk (receives Buffer)
+ * @param {Function} [options.onStderr] - Callback for each stderr chunk (receives Buffer)
  * @returns {Promise<{ exitCode: number, stdout: string, stderr: string }>}
  */
 export function execAsync(command, cwd, options = {}) {
   return new Promise((resolve) => {
-    const { timeout, env } = options;
+    const { timeout, env, onStdout, onStderr } = options;
     const child = spawn(command, {
       cwd,
       shell: true,
@@ -173,8 +175,14 @@ export function execAsync(command, cwd, options = {}) {
     const stdoutChunks = [];
     const stderrChunks = [];
 
-    child.stdout.on('data', (chunk) => stdoutChunks.push(chunk));
-    child.stderr.on('data', (chunk) => stderrChunks.push(chunk));
+    child.stdout.on('data', (chunk) => {
+      stdoutChunks.push(chunk);
+      if (onStdout) onStdout(chunk);
+    });
+    child.stderr.on('data', (chunk) => {
+      stderrChunks.push(chunk);
+      if (onStderr) onStderr(chunk);
+    });
 
     let timer;
     if (timeout) {

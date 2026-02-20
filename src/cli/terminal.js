@@ -96,62 +96,91 @@ export function box(lines) {
   return [top, ...body, bottom].join('\n');
 }
 
-// ── Spinner ───────────────────────────────────────────────────────────
-
-const SPINNER_FRAMES = ['\u280B', '\u2819', '\u2839', '\u2838', '\u283C', '\u2834', '\u2826', '\u2827', '\u2807', '\u280F'];
-const SPINNER_INTERVAL = 80; // ms
+// ── Sticky line ───────────────────────────────────────────────────────
 
 /**
- * A simple terminal spinner with elapsed time display.
- * On non-TTY terminals, prints a single static line instead.
+ * A persistent status line that stays at the bottom of the terminal
+ * while other output scrolls above it.
+ *
+ * On non-TTY terminals, does nothing — output flows normally.
  */
-export class Spinner {
-  /**
-   * @param {string} message - Text to show next to the spinner
-   */
-  constructor(message) {
-    this.message = message;
-    this._timer = null;
-    this._frame = 0;
-    this._startTime = null;
+export class StickyLine {
+  constructor() {
+    this._content = '';
+    this._active = false;
   }
 
-  /** Start the spinner animation. */
-  start() {
-    this._startTime = Date.now();
+  /**
+   * Start showing the sticky line.
+   * @param {string} content - Initial content
+   */
+  start(content) {
+    this._active = true;
+    this._content = content;
+    if (isTTY()) {
+      process.stdout.write(this._content);
+    }
+  }
 
-    if (!isTTY()) {
-      process.stdout.write(`  ${this.message} ...\n`);
+  /**
+   * Update the sticky line content (e.g. elapsed timer).
+   * @param {string} content
+   */
+  update(content) {
+    this._content = content;
+    if (this._active && isTTY()) {
+      process.stdout.write('\r\x1b[K' + this._content);
+    }
+  }
+
+  /**
+   * Write output above the sticky line.
+   * Clears the sticky, writes the chunk, then re-renders.
+   * @param {Buffer|string} chunk
+   */
+  writeAbove(chunk) {
+    if (!this._active || !isTTY()) {
+      process.stdout.write(chunk);
       return;
     }
-
-    this._render();
-    this._timer = setInterval(() => this._render(), SPINNER_INTERVAL);
+    // Clear sticky line
+    process.stdout.write('\r\x1b[K');
+    // Write the actual output
+    process.stdout.write(chunk);
+    // Ensure sticky gets its own line
+    const str = chunk.toString();
+    if (str.length > 0 && !str.endsWith('\n')) {
+      process.stdout.write('\n');
+    }
+    // Re-render sticky
+    process.stdout.write(this._content);
   }
 
-  /** Stop the spinner and clear the line. Returns elapsed ms. */
-  stop() {
-    const elapsed = this._startTime ? Date.now() - this._startTime : 0;
-
-    if (this._timer) {
-      clearInterval(this._timer);
-      this._timer = null;
+  /**
+   * Write stderr output above the sticky line.
+   * @param {Buffer|string} chunk
+   */
+  writeAboveStderr(chunk) {
+    if (!this._active || !isTTY()) {
+      process.stderr.write(chunk);
+      return;
     }
+    // Clear sticky on stdout, write stderr, re-render sticky
+    process.stdout.write('\r\x1b[K');
+    process.stderr.write(chunk);
+    const str = chunk.toString();
+    if (str.length > 0 && !str.endsWith('\n')) {
+      process.stderr.write('\n');
+    }
+    process.stdout.write(this._content);
+  }
 
-    if (isTTY()) {
-      // Clear the spinner line
+  /** Clear the sticky line and deactivate. */
+  clear() {
+    if (this._active && isTTY()) {
       process.stdout.write('\r\x1b[K');
     }
-
-    return elapsed;
-  }
-
-  /** @private */
-  _render() {
-    const frame = SPINNER_FRAMES[this._frame % SPINNER_FRAMES.length];
-    this._frame++;
-    const elapsed = ((Date.now() - this._startTime) / 1000).toFixed(1);
-    const elapsedStr = dim(`(${elapsed}s)`);
-    process.stdout.write(`\r  ${frame} ${this.message} ${elapsedStr}\x1b[K`);
+    this._active = false;
+    this._content = '';
   }
 }

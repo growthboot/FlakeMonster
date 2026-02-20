@@ -10,7 +10,7 @@ import { Reporter } from '../../core/reporter.js';
 import { detectRunner, parseTestOutput } from '../../core/parsers/index.js';
 import { analyzeFlakiness } from '../../core/flake-analyzer.js';
 import * as terminal from '../terminal.js';
-import { Spinner } from '../terminal.js';
+import { StickyLine } from '../terminal.js';
 
 export function registerTestCommand(program) {
   program
@@ -85,17 +85,33 @@ export function registerTestCommand(program) {
             lastManifest = manifest;
             reporter.printInjectionStats(manifest);
 
-            // Run tests with spinner
-            const spinner = new Spinner(`Run ${i + 1}/${runs}  seed=${runSeed}`);
-            if (!reporter.quiet) spinner.start();
+            // Run tests — stream output with sticky status line
+            const passed = results.filter(r => r.exitCode === 0).length;
+            const failed = results.length - passed;
+            const sticky = new StickyLine();
+            const start = Date.now();
+            let stickyTimer;
+
+            if (!reporter.quiet) {
+              const stickyContent = () => {
+                const elapsed = ((Date.now() - start) / 1000).toFixed(1);
+                const bar = terminal.progressBar(i, runs);
+                return terminal.dim(`  ${bar}  ${passed} passed  ${failed} failed  `) + `Run ${i + 1}/${runs}  ${elapsed}s`;
+              };
+              sticky.start(stickyContent());
+              stickyTimer = setInterval(() => sticky.update(stickyContent()), 200);
+            }
 
             let exitCode, stdout, stderr, durationMs;
-            const start = Date.now();
             try {
-              ({ exitCode, stdout, stderr } = await execAsync(testCmd, projectRoot));
+              ({ exitCode, stdout, stderr } = await execAsync(testCmd, projectRoot, {
+                onStdout: reporter.quiet ? undefined : (chunk) => sticky.writeAbove(chunk),
+                onStderr: reporter.quiet ? undefined : (chunk) => sticky.writeAboveStderr(chunk),
+              }));
               durationMs = Date.now() - start;
             } finally {
-              if (!reporter.quiet) spinner.stop();
+              if (stickyTimer) clearInterval(stickyTimer);
+              sticky.clear();
             }
 
             // Parse test output if we have a runner
@@ -115,11 +131,6 @@ export function registerTestCommand(program) {
             };
 
             reporter.printRunResult(result, runs);
-            results.push(result);
-
-            if (i < runs - 1) {
-              reporter.printProgressTally(results, runs);
-            }
           } else {
             // Create workspace
             const workspace = new ProjectWorkspace({
@@ -134,21 +145,37 @@ export function registerTestCommand(program) {
             await manifest.save(flakeDir);
             reporter.printInjectionStats(manifest);
 
-            // Run tests with spinner
-            const spinner = new Spinner(`Run ${i + 1}/${runs}  seed=${runSeed}`);
-            if (!reporter.quiet) spinner.start();
-
-            let exitCode, stdout, stderr, durationMs;
+            // Run tests — stream output with sticky status line
+            const passed = results.filter(r => r.exitCode === 0).length;
+            const failed = results.length - passed;
+            const sticky = new StickyLine();
             const start = Date.now();
-            try {
-              ({ exitCode, stdout, stderr } = await workspace.execAsync(testCmd));
-              durationMs = Date.now() - start;
-            } finally {
-              if (!reporter.quiet) spinner.stop();
+            let stickyTimer;
+
+            if (!reporter.quiet) {
+              const stickyContent = () => {
+                const elapsed = ((Date.now() - start) / 1000).toFixed(1);
+                const bar = terminal.progressBar(i, runs);
+                return terminal.dim(`  ${bar}  ${passed} passed  ${failed} failed  `) + `Run ${i + 1}/${runs}  ${elapsed}s`;
+              };
+              sticky.start(stickyContent());
+              stickyTimer = setInterval(() => sticky.update(stickyContent()), 200);
             }
 
-            const failed = exitCode !== 0;
-            const shouldKeep = (failed && options.keepOnFail) || options.keepAll;
+            let exitCode, stdout, stderr, durationMs;
+            try {
+              ({ exitCode, stdout, stderr } = await workspace.execAsync(testCmd, {
+                onStdout: reporter.quiet ? undefined : (chunk) => sticky.writeAbove(chunk),
+                onStderr: reporter.quiet ? undefined : (chunk) => sticky.writeAboveStderr(chunk),
+              }));
+              durationMs = Date.now() - start;
+            } finally {
+              if (stickyTimer) clearInterval(stickyTimer);
+              sticky.clear();
+            }
+
+            const testFailed = exitCode !== 0;
+            const shouldKeep = (testFailed && options.keepOnFail) || options.keepAll;
 
             // Parse test output if we have a runner
             const parsed = runner ? parseTestOutput(runner, stdout) : null;
@@ -167,11 +194,6 @@ export function registerTestCommand(program) {
             };
 
             reporter.printRunResult(result, runs);
-            results.push(result);
-
-            if (i < runs - 1) {
-              reporter.printProgressTally(results, runs);
-            }
 
             // Cleanup
             if (!shouldKeep) {

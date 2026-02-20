@@ -15,14 +15,14 @@ const RUNTIME_FILENAME = 'flake-monster.runtime.js';
  * @returns {string}
  */
 function computeRuntimeImportPath(filePath) {
-  // Count directory depth
-  const parts = filePath.split('/').filter(Boolean);
-  if (parts.length <= 1) {
+  const normalized = posix.normalize(filePath);
+  const dir = posix.dirname(normalized);
+  if (dir === '.') {
     // File is at root level
     return `./${RUNTIME_FILENAME}`;
   }
-  // Go up (parts.length - 1) directories
-  const ups = '../'.repeat(parts.length - 1);
+  const depth = dir.split('/').length;
+  const ups = '../'.repeat(depth);
   return `${ups}${RUNTIME_FILENAME}`;
 }
 

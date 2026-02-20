@@ -8,7 +8,7 @@ import {
   stripAnsi,
   progressBar,
   box,
-  Spinner,
+  StickyLine,
 } from '../../src/cli/terminal.js';
 
 describe('supportsColor', () => {
@@ -154,18 +154,34 @@ describe('box', () => {
   });
 });
 
-describe('Spinner', () => {
-  it('tracks elapsed time', async () => {
-    const spinner = new Spinner('test');
-    spinner._startTime = Date.now() - 500;
-    const elapsed = spinner.stop();
-    assert.ok(elapsed >= 400, `elapsed ${elapsed} should be >= 400`);
-    assert.ok(elapsed < 1000, `elapsed ${elapsed} should be < 1000`);
+describe('StickyLine', () => {
+  it('starts inactive', () => {
+    const sticky = new StickyLine();
+    assert.strictEqual(sticky._active, false);
+    assert.strictEqual(sticky._content, '');
   });
 
-  it('stop returns 0 when never started', () => {
-    const spinner = new Spinner('test');
-    const elapsed = spinner.stop();
-    assert.strictEqual(elapsed, 0);
+  it('becomes active after start', () => {
+    const sticky = new StickyLine();
+    sticky.start('status line');
+    assert.strictEqual(sticky._active, true);
+    assert.strictEqual(sticky._content, 'status line');
+    sticky.clear();
+  });
+
+  it('updates content', () => {
+    const sticky = new StickyLine();
+    sticky.start('first');
+    sticky.update('second');
+    assert.strictEqual(sticky._content, 'second');
+    sticky.clear();
+  });
+
+  it('deactivates on clear', () => {
+    const sticky = new StickyLine();
+    sticky.start('test');
+    sticky.clear();
+    assert.strictEqual(sticky._active, false);
+    assert.strictEqual(sticky._content, '');
   });
 });
