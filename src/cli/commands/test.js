@@ -5,6 +5,7 @@ import { InjectorEngine } from '../../core/engine.js';
 import { FlakeProfile } from '../../core/profile.js';
 import { parseSeed, deriveSeed } from '../../core/seed.js';
 import { ProjectWorkspace, getFlakeMonsterDir, execAsync } from '../../core/workspace.js';
+import { Manifest } from '../../core/manifest.js';
 import { loadConfig, mergeWithCliOptions } from '../../core/config.js';
 import { Reporter } from '../../core/reporter.js';
 import { detectRunner, parseTestOutput } from '../../core/parsers/index.js';
@@ -52,6 +53,18 @@ export function registerTestCommand(program) {
         registry.register(createJavaScriptAdapter());
         const engine = new InjectorEngine(registry, profile);
         const reporter = new Reporter({ quiet: jsonOutput, terminal });
+
+        // Guard against stale injection from a previous interrupted run
+        if (inPlace) {
+          const flakeDir = getFlakeMonsterDir(projectRoot);
+          const staleManifest = await Manifest.load(flakeDir);
+          if (staleManifest) {
+            reporter.log(`Stale injection detected (seed: ${staleManifest.seed}, mode: ${staleManifest.mode}). Restoring before proceeding...`);
+            await engine.restoreAll(projectRoot, staleManifest);
+            await Manifest.delete(flakeDir);
+            reporter.log('Stale injections removed. Source files are clean.\n');
+          }
+        }
 
         reporter.log(`FlakeMonster test harness`);
         reporter.log(`  Runs: ${runs} | Mode: ${profile.mode} | Base seed: ${baseSeed}`);

@@ -1,11 +1,23 @@
 import { resolve } from 'node:path';
+import { createInterface } from 'node:readline';
 import { AdapterRegistry } from '../../adapters/registry.js';
 import { createJavaScriptAdapter } from '../../adapters/javascript/index.js';
 import { InjectorEngine } from '../../core/engine.js';
 import { FlakeProfile } from '../../core/profile.js';
 import { parseSeed } from '../../core/seed.js';
 import { ProjectWorkspace, getFlakeMonsterDir } from '../../core/workspace.js';
+import { Manifest } from '../../core/manifest.js';
 import { loadConfig, mergeWithCliOptions } from '../../core/config.js';
+
+function confirm(question) {
+  const rl = createInterface({ input: process.stdin, output: process.stdout });
+  return new Promise((resolve) => {
+    rl.question(question, (answer) => {
+      rl.close();
+      resolve(answer.trim().toLowerCase() === 'y');
+    });
+  });
+}
 
 export function registerInjectCommand(program) {
   program
@@ -30,6 +42,23 @@ export function registerInjectCommand(program) {
         const registry = new AdapterRegistry();
         registry.register(createJavaScriptAdapter());
         const engine = new InjectorEngine(registry, profile);
+
+        // Guard against double injection
+        const flakeDirCheck = getFlakeMonsterDir(projectRoot);
+        const existingManifest = await Manifest.load(flakeDirCheck);
+        if (existingManifest) {
+          console.log(
+            `Active injection detected (seed: ${existingManifest.seed}, mode: ${existingManifest.mode}, injected at: ${existingManifest.createdAt}).`
+          );
+          const proceed = await confirm('Restore source files before re-injecting? (y/N) ');
+          if (!proceed) {
+            console.log('Aborted. Run `flake-monster restore` manually to clean up.');
+            process.exit(1);
+          }
+          await engine.restoreAll(projectRoot, existingManifest);
+          await Manifest.delete(flakeDirCheck);
+          console.log('Previous injections removed. Proceeding with fresh injection.\n');
+        }
 
         const useWorkspace = options.workspace;
         let targetDir = projectRoot;
