@@ -1,5 +1,7 @@
 # FlakeMonster
 
+[flakemonster.com](https://flakemonster.com) — interactive demos, CI integration, and docs.
+
 A source-to-source test hardener that finds flaky tests by injecting async delays into your code. It intentionally makes timing worse so race conditions surface *before* they hit production, then gives you a seed to reproduce the exact failure every time.
 
 ## Why
