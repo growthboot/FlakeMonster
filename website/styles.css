@@ -1430,11 +1430,6 @@ footer {
   gap: 12px;
   padding: 10px 14px;
   border-radius: var(--radius);
-  transition: background 0.2s;
-}
-
-.ci-step:hover {
-  background: var(--surface);
 }
 
 .ci-step-icon {
@@ -1724,6 +1719,106 @@ footer {
 .pr-footer-logo {
   width: 14px;
   height: 14px;
+}
+
+/* ── Claude Code Section ── */
+#skill-section {
+  padding-top: 80px;
+  padding-bottom: 48px;
+}
+
+.cc-header {
+  text-align: center;
+  margin-bottom: 40px;
+}
+
+.cc-header h2 {
+  font-size: 32px;
+  margin-bottom: 8px;
+}
+
+.cc-subtitle {
+  font-size: 18px;
+  color: var(--text-muted);
+  max-width: 540px;
+  margin: 0 auto;
+}
+
+.cc-link {
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 1px solid rgba(64, 184, 92, 0.3);
+}
+
+.cc-link:hover {
+  border-bottom-color: var(--accent);
+}
+
+/* Skill install tabs */
+.skill-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  padding: 6px 10px 0;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  gap: 0;
+}
+
+.skill-tab {
+  padding: 8px 12px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-muted);
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+  margin-bottom: -1px;
+}
+
+.skill-tab:hover {
+  color: var(--text);
+}
+
+.skill-tab.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+.skill-panel {
+  display: none;
+}
+
+.skill-panel.active {
+  display: block;
+}
+
+.cc-layout {
+  display: flex;
+  gap: 28px;
+  align-items: flex-start;
+}
+
+.cc-steps {
+  flex: 0 0 340px;
+}
+
+.cc-code-blocks {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.cc-code-blocks code {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  background: rgba(64, 184, 92, 0.1);
+  color: var(--accent);
+  padding: 1px 5px;
+  border-radius: 3px;
 }
 
 /* ── Pricing Section ── */
@@ -2436,6 +2531,15 @@ footer {
     flex-direction: column;
     gap: 6px;
     align-items: flex-start;
+  }
+
+  .cc-layout {
+    flex-direction: column;
+  }
+
+  .cc-steps {
+    flex: none;
+    width: 100%;
   }
 
   .pricing-cards {

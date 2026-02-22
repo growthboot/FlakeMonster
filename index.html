@@ -63,6 +63,20 @@
             }, 2000);
           });
         }
+        // Skill install tabs
+        var skillTabs = document.getElementById('skill-tabs');
+        var skillPanels = document.getElementById('skill-install-panels');
+        if (skillTabs && skillPanels) {
+          skillTabs.addEventListener('click', function(e) {
+            var btn = e.target.closest('[data-skill]');
+            if (!btn) return;
+            var id = btn.dataset.skill;
+            skillTabs.querySelectorAll('.skill-tab').forEach(function(t) { t.classList.remove('active'); });
+            btn.classList.add('active');
+            skillPanels.querySelectorAll('.skill-panel').forEach(function(p) { p.classList.remove('active'); });
+            skillPanels.querySelector('[data-skill-panel="' + id + '"]').classList.add('active');
+          });
+        }
       });
     })();
   </script>
@@ -79,10 +93,11 @@
         <a href="#jitter-demo">Jitter</a>
         <a href="#code-demo">Injection</a>
         <a href="#seed-demo">Seeds</a>
+        <a href="#skill-section">Agent Skill</a>
         <a href="#ci-section">CI</a>
         <a href="#pricing-section">Pricing</a>
         <a href="#roadmap-section">Roadmap</a>
-        <a href="https://github.com/growthboot/FlakeMonster">GitHub</a>
+        <a href="https://github.com/growthboot/FlakeMonster" target="_blank" rel="nofollow noopener">GitHub</a>
         <button class="theme-toggle" data-theme-toggle aria-label="Toggle dark mode"></button>
       </div>
     </div>
@@ -240,9 +255,9 @@
           </button>
         </div>
         <div class="hero-install-links">
-          <a href="https://www.npmjs.com/package/flake-monster" class="hero-link">npm</a>
+          <a href="https://www.npmjs.com/package/flake-monster" class="hero-link" target="_blank" rel="nofollow noopener">npm</a>
           <span class="hero-link-sep">&middot;</span>
-          <a href="https://github.com/growthboot/FlakeMonster" class="hero-link">GitHub</a>
+          <a href="https://github.com/growthboot/FlakeMonster" class="hero-link" target="_blank" rel="nofollow noopener">GitHub</a>
           <span class="hero-link-sep">&middot;</span>
           <span class="hero-version">v0.4.6</span>
         </div>
@@ -270,7 +285,7 @@
   <!-- Demo 0: How It Works (Pipeline) -->
   <section id="pipeline-demo">
     <h2>How It Works</h2>
-    <p>FlakeMonster uses <a href="https://github.com/acornjs/acorn"><b>Acorn</b></a> to parse your code into an AST, walks the tree to find async functions and top-level module statements, injects delay nodes, then generates the modified source.</p>
+    <p>FlakeMonster uses <a href="https://github.com/acornjs/acorn" target="_blank" rel="nofollow noopener"><b>Acorn</b></a> to parse your code into an AST, walks the tree to find async functions and top-level module statements, injects delay nodes, then generates the modified source.</p>
 
     <div class="pipeline-steps" id="pipeline-steps">
       <button class="pipeline-step active" data-step="0">
@@ -390,6 +405,104 @@
     </div>
 
     <pre id="seed-breakdown" class="seed-breakdown"></pre>
+  </section>
+
+  <!-- Agent Skill Section -->
+  <section id="skill-section">
+    <div class="cc-header">
+      <h2>Agent Skill</h2>
+      <p class="cc-subtitle">Uses the open <a href="https://agentskills.io" class="cc-link" target="_blank" rel="nofollow noopener">Agent Skills</a> standard. One SKILL.md works across Claude Code, Codex, Copilot, and more.</p>
+    </div>
+
+    <div class="cc-layout">
+      <div class="cc-steps">
+        <div class="ci-step">
+          <div class="ci-step-icon">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+              <path d="M4 16V4h8l4 4v8a1 1 0 01-1 1H5a1 1 0 01-1-1z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+              <path d="M12 4v4h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <div>
+            <strong>Install the skill</strong>
+            <span>One command drops the skill file into your project</span>
+          </div>
+        </div>
+        <div class="ci-step-connector">
+          <svg width="2" height="20" viewBox="0 0 2 20"><line x1="1" y1="0" x2="1" y2="20" stroke="var(--accent)" stroke-width="1.5" stroke-dasharray="3 3" opacity="0.4"/></svg>
+        </div>
+        <div class="ci-step">
+          <div class="ci-step-icon">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+              <path d="M6 9l2 2 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+              <rect x="2" y="3" width="16" height="14" rx="2" stroke="currentColor" stroke-width="1.5"/>
+            </svg>
+          </div>
+          <div>
+            <strong>Use the slash command</strong>
+            <span>Type <code>/flakemonster</code> followed by your test command</span>
+          </div>
+        </div>
+        <div class="ci-step-connector">
+          <svg width="2" height="20" viewBox="0 0 2 20"><line x1="1" y1="0" x2="1" y2="20" stroke="var(--accent)" stroke-width="1.5" stroke-dasharray="3 3" opacity="0.4"/></svg>
+        </div>
+        <div class="ci-step">
+          <div class="ci-step-icon">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+              <path d="M3 4h14M3 8h10M3 12h12M3 16h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <div>
+            <strong>Get a flake report</strong>
+            <span>Your agent runs multiple seeds, analyzes results, and reports flaky tests</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="cc-code-blocks">
+        <div class="ci-yaml">
+          <div class="skill-tabs" id="skill-tabs">
+            <button class="skill-tab active" data-skill="claude">Claude Code</button>
+            <button class="skill-tab" data-skill="cursor">Cursor</button>
+            <button class="skill-tab" data-skill="codex">Codex</button>
+            <button class="skill-tab" data-skill="copilot">Copilot</button>
+            <button class="skill-tab" data-skill="windsurf">Windsurf</button>
+            <button class="skill-tab" data-skill="antigravity">Antigravity</button>
+          </div>
+          <div id="skill-install-panels">
+            <pre class="ci-yaml-code skill-panel active" data-skill-panel="claude"><span class="syn-pun">$</span> mkdir -p .claude/commands && \
+  curl -sL <span class="syn-str">https://raw.githubusercontent.com/growthboot/FlakeMonster/main/lib-repo/SKILL.md</span> \
+  -o <span class="syn-str">.claude/commands/flakemonster.md</span></pre>
+            <pre class="ci-yaml-code skill-panel" data-skill-panel="cursor"><span class="syn-pun">$</span> mkdir -p .cursor/skills/flakemonster && \
+  curl -sL <span class="syn-str">https://raw.githubusercontent.com/growthboot/FlakeMonster/main/lib-repo/SKILL.md</span> \
+  -o <span class="syn-str">.cursor/skills/flakemonster/SKILL.md</span></pre>
+            <pre class="ci-yaml-code skill-panel" data-skill-panel="codex"><span class="syn-pun">$</span> mkdir -p .agents/skills/flakemonster && \
+  curl -sL <span class="syn-str">https://raw.githubusercontent.com/growthboot/FlakeMonster/main/lib-repo/SKILL.md</span> \
+  -o <span class="syn-str">.agents/skills/flakemonster/SKILL.md</span></pre>
+            <pre class="ci-yaml-code skill-panel" data-skill-panel="copilot"><span class="syn-pun">$</span> mkdir -p .github/skills/flakemonster && \
+  curl -sL <span class="syn-str">https://raw.githubusercontent.com/growthboot/FlakeMonster/main/lib-repo/SKILL.md</span> \
+  -o <span class="syn-str">.github/skills/flakemonster/SKILL.md</span></pre>
+            <pre class="ci-yaml-code skill-panel" data-skill-panel="windsurf"><span class="syn-pun">$</span> mkdir -p .windsurf/skills/flakemonster && \
+  curl -sL <span class="syn-str">https://raw.githubusercontent.com/growthboot/FlakeMonster/main/lib-repo/SKILL.md</span> \
+  -o <span class="syn-str">.windsurf/skills/flakemonster/SKILL.md</span></pre>
+            <pre class="ci-yaml-code skill-panel" data-skill-panel="antigravity"><span class="syn-pun">$</span> mkdir -p .agent/skills/flakemonster && \
+  curl -sL <span class="syn-str">https://raw.githubusercontent.com/growthboot/FlakeMonster/main/lib-repo/SKILL.md</span> \
+  -o <span class="syn-str">.agent/skills/flakemonster/SKILL.md</span></pre>
+          </div>
+        </div>
+
+        <div class="ci-yaml">
+          <div class="ci-yaml-tab">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="1" y="1" width="12" height="12" rx="2" stroke="currentColor" stroke-width="1.2"/><path d="M4 5l2 2-2 2" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/><line x1="7.5" y1="9" x2="10" y2="9" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+            Usage
+          </div>
+          <pre class="ci-yaml-code"><span class="syn-cmt">// Type in any supported agent:</span>
+<span class="syn-str">/flakemonster</span> npm test
+<span class="syn-str">/flakemonster</span> npx playwright test
+<span class="syn-str">/flakemonster</span> <span class="syn-pun">--runs 20 --mode hardcore</span> npx jest</pre>
+        </div>
+      </div>
+    </div>
   </section>
 
   <!-- CI Section -->
@@ -566,7 +679,7 @@
           <li>PR comments with results</li>
           <li>Community support</li>
         </ul>
-        <a href="https://github.com/growthboot/FlakeMonster" class="pricing-btn pricing-btn-secondary">
+        <a href="https://github.com/growthboot/FlakeMonster" class="pricing-btn pricing-btn-secondary" target="_blank" rel="nofollow noopener">
           <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
           Get started
         </a>
@@ -690,7 +803,7 @@
         </div>
         <h3>Your idea here</h3>
         <p>Have a feature request or found a bug? We'd love to hear from you.</p>
-        <a href="https://github.com/growthboot/FlakeMonster/issues" class="roadmap-link">
+        <a href="https://github.com/growthboot/FlakeMonster/issues" class="roadmap-link" target="_blank" rel="nofollow noopener">
           <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
           Open an issue on GitHub
         </a>
@@ -738,9 +851,9 @@
         </div>
         <div class="footer-col">
           <h4>Project</h4>
-          <a href="https://github.com/growthboot/FlakeMonster">GitHub</a>
-          <a href="https://github.com/growthboot/FlakeMonster/issues">Issues</a>
-          <a href="https://github.com/growthboot/FlakeMonster#readme">Docs</a>
+          <a href="https://github.com/growthboot/FlakeMonster" target="_blank" rel="nofollow noopener">GitHub</a>
+          <a href="https://github.com/growthboot/FlakeMonster/issues" target="_blank" rel="nofollow noopener">Issues</a>
+          <a href="https://github.com/growthboot/FlakeMonster#readme" target="_blank" rel="nofollow noopener">Docs</a>
         </div>
       </div>
     </div>

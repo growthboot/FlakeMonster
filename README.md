@@ -26,6 +26,32 @@ npm install flake-monster
 
 Requires Node.js >= 18.
 
+## Agent Skill
+
+FlakeMonster ships as an [Agent Skill](https://agentskills.io) — one SKILL.md that works across coding agents. Install for your tool:
+
+```bash
+# Claude Code
+mkdir -p .claude/commands && curl -sL https://raw.githubusercontent.com/growthboot/FlakeMonster/main/lib-repo/SKILL.md -o .claude/commands/flakemonster.md
+
+# Cursor
+mkdir -p .cursor/skills/flakemonster && curl -sL https://raw.githubusercontent.com/growthboot/FlakeMonster/main/lib-repo/SKILL.md -o .cursor/skills/flakemonster/SKILL.md
+
+# Codex
+mkdir -p .agents/skills/flakemonster && curl -sL https://raw.githubusercontent.com/growthboot/FlakeMonster/main/lib-repo/SKILL.md -o .agents/skills/flakemonster/SKILL.md
+
+# Copilot
+mkdir -p .github/skills/flakemonster && curl -sL https://raw.githubusercontent.com/growthboot/FlakeMonster/main/lib-repo/SKILL.md -o .github/skills/flakemonster/SKILL.md
+
+# Windsurf
+mkdir -p .windsurf/skills/flakemonster && curl -sL https://raw.githubusercontent.com/growthboot/FlakeMonster/main/lib-repo/SKILL.md -o .windsurf/skills/flakemonster/SKILL.md
+
+# Antigravity
+mkdir -p .agent/skills/flakemonster && curl -sL https://raw.githubusercontent.com/growthboot/FlakeMonster/main/lib-repo/SKILL.md -o .agent/skills/flakemonster/SKILL.md
+```
+
+Then use `/flakemonster <test command>` to have your agent run tests through FlakeMonster and analyze the results.
+
 ## Quick Start
 
 Find flaky tests in 30 seconds:

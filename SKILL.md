@@ -1,5 +1,5 @@
 ---
-name: flakemonster-test
+name: flakemonster
 description: Run a test command through FlakeMonster to detect flaky tests by injecting async delays
 disable-model-invocation: true
 argument-hint: <test command>
@@ -14,10 +14,10 @@ Run the user's test command through FlakeMonster to surface flaky tests.
 `$ARGUMENTS` is the full test command to run through FlakeMonster.
 
 **Example invocations:**
-- `/flake-test npx playwright test tests/checkout.spec.ts`
-- `/flake-test npx jest --testPathPattern="api"`
-- `/flake-test node --test test/unit/*.test.js`
-- `/flake-test --runs 20 --mode hardcore npx playwright test`
+- `/flakemonster npx playwright test tests/checkout.spec.ts`
+- `/flakemonster npx jest --testPathPattern="api"`
+- `/flakemonster node --test test/unit/*.test.js`
+- `/flakemonster --runs 20 --mode hardcore npx playwright test`
 
 ## Workflow
 
@@ -59,7 +59,7 @@ Check for configuration in this order:
 
 If `$ARGUMENTS` contains FlakeMonster flags (`--runs`, `--mode`, `--seed`, `--min-delay`, `--max-delay`, `--exclude`, `--workspace`, `--keep-on-fail`, `--keep-all`), extract them and pass them as direct arguments to `flake-monster test`. Everything else is the test command and goes inside `--cmd "..."`.
 
-Example: if the user says `/flake-test --runs 20 --mode hardcore npx playwright test`, the command becomes:
+Example: if the user says `/flakemonster --runs 20 --mode hardcore npx playwright test`, the command becomes:
 ```bash
 npx flake-monster test --runs 20 --mode hardcore --format json --cmd "npx playwright test" <globs>
 ```
