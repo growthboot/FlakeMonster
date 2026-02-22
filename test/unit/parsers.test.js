@@ -2,6 +2,7 @@ import { describe, it } from 'node:test';
 import { strict as assert } from 'node:assert';
 import { parseJestOutput } from '../../src/core/parsers/jest.js';
 import { parseNodeTestOutput } from '../../src/core/parsers/node-test.js';
+import { parsePlaywrightOutput } from '../../src/core/parsers/playwright.js';
 import { parseTapOutput } from '../../src/core/parsers/tap.js';
 import { detectRunner, parseTestOutput } from '../../src/core/parsers/index.js';
 
@@ -335,6 +336,232 @@ describe('parseTapOutput', () => {
   });
 });
 
+// ─── Playwright Parser ────────────────────────────────────────
+
+describe('parsePlaywrightOutput', () => {
+  it('parses a passing test suite', () => {
+    const json = JSON.stringify({
+      suites: [{
+        title: 'checkout.spec.ts',
+        file: 'tests/checkout.spec.ts',
+        specs: [{
+          title: 'should load page',
+          file: 'tests/checkout.spec.ts',
+          tests: [{
+            projectName: 'chromium',
+            status: 'expected',
+            results: [{ status: 'passed', duration: 1500 }],
+          }],
+        }, {
+          title: 'should add to cart',
+          file: 'tests/checkout.spec.ts',
+          tests: [{
+            projectName: 'chromium',
+            status: 'expected',
+            results: [{ status: 'passed', duration: 800 }],
+          }],
+        }],
+      }],
+    });
+
+    const result = parsePlaywrightOutput(json);
+    assert.strictEqual(result.parsed, true);
+    assert.strictEqual(result.tests.length, 2);
+    assert.strictEqual(result.totalPassed, 2);
+    assert.strictEqual(result.totalFailed, 0);
+    assert.strictEqual(result.totalSkipped, 0);
+    assert.strictEqual(result.tests[0].name, 'checkout.spec.ts > should load page');
+    assert.strictEqual(result.tests[0].file, 'tests/checkout.spec.ts');
+    assert.strictEqual(result.tests[0].status, 'passed');
+    assert.strictEqual(result.tests[0].durationMs, 1500);
+    assert.strictEqual(result.tests[0].failureMessage, null);
+  });
+
+  it('parses a failing test', () => {
+    const json = JSON.stringify({
+      suites: [{
+        title: 'login.spec.ts',
+        file: 'tests/login.spec.ts',
+        specs: [{
+          title: 'should login',
+          file: 'tests/login.spec.ts',
+          tests: [{
+            projectName: 'chromium',
+            status: 'unexpected',
+            results: [{ status: 'failed', duration: 3000, error: { message: 'Timeout waiting for selector' } }],
+          }],
+        }],
+      }],
+    });
+
+    const result = parsePlaywrightOutput(json);
+    assert.strictEqual(result.parsed, true);
+    assert.strictEqual(result.totalFailed, 1);
+    const failed = result.tests.find(t => t.status === 'failed');
+    assert.strictEqual(failed.name, 'login.spec.ts > should login');
+    assert.strictEqual(failed.failureMessage, 'Timeout waiting for selector');
+  });
+
+  it('handles skipped tests', () => {
+    const json = JSON.stringify({
+      suites: [{
+        title: 'todo.spec.ts',
+        file: 'tests/todo.spec.ts',
+        specs: [{
+          title: 'not yet implemented',
+          file: 'tests/todo.spec.ts',
+          tests: [{
+            projectName: 'chromium',
+            status: 'skipped',
+            results: [],
+          }],
+        }],
+      }],
+    });
+
+    const result = parsePlaywrightOutput(json);
+    assert.strictEqual(result.parsed, true);
+    assert.strictEqual(result.totalSkipped, 1);
+    assert.strictEqual(result.tests[0].status, 'skipped');
+    assert.strictEqual(result.tests[0].durationMs, null);
+  });
+
+  it('handles nested suites', () => {
+    const json = JSON.stringify({
+      suites: [{
+        title: 'checkout.spec.ts',
+        file: 'tests/checkout.spec.ts',
+        specs: [],
+        suites: [{
+          title: 'payment flow',
+          specs: [{
+            title: 'should complete payment',
+            file: 'tests/checkout.spec.ts',
+            tests: [{
+              projectName: 'chromium',
+              status: 'expected',
+              results: [{ status: 'passed', duration: 2000 }],
+            }],
+          }],
+        }],
+      }],
+    });
+
+    const result = parsePlaywrightOutput(json);
+    assert.strictEqual(result.parsed, true);
+    assert.strictEqual(result.tests.length, 1);
+    assert.strictEqual(result.tests[0].name, 'checkout.spec.ts > payment flow > should complete payment');
+  });
+
+  it('handles multiple projects (browsers) per spec', () => {
+    const json = JSON.stringify({
+      suites: [{
+        title: 'basic.spec.ts',
+        file: 'tests/basic.spec.ts',
+        specs: [{
+          title: 'should render',
+          file: 'tests/basic.spec.ts',
+          tests: [
+            { projectName: 'chromium', status: 'expected', results: [{ status: 'passed', duration: 500 }] },
+            { projectName: 'firefox', status: 'unexpected', results: [{ status: 'failed', duration: 600, error: { message: 'Element not found' } }] },
+          ],
+        }],
+      }],
+    });
+
+    const result = parsePlaywrightOutput(json);
+    assert.strictEqual(result.tests.length, 2);
+    assert.strictEqual(result.totalPassed, 1);
+    assert.strictEqual(result.totalFailed, 1);
+  });
+
+  it('sums duration across retries', () => {
+    const json = JSON.stringify({
+      suites: [{
+        title: 'retry.spec.ts',
+        file: 'tests/retry.spec.ts',
+        specs: [{
+          title: 'flaky test',
+          file: 'tests/retry.spec.ts',
+          tests: [{
+            projectName: 'chromium',
+            status: 'expected',
+            results: [
+              { status: 'failed', duration: 1000, error: { message: 'Timeout' } },
+              { status: 'passed', duration: 800 },
+            ],
+          }],
+        }],
+      }],
+    });
+
+    const result = parsePlaywrightOutput(json);
+    assert.strictEqual(result.tests[0].durationMs, 1800);
+    // Overall status is 'expected' (passed after retry)
+    assert.strictEqual(result.tests[0].status, 'passed');
+    assert.strictEqual(result.tests[0].failureMessage, null);
+  });
+
+  it('returns parsed:false for invalid JSON', () => {
+    const result = parsePlaywrightOutput('not json');
+    assert.strictEqual(result.parsed, false);
+    assert.deepStrictEqual(result.tests, []);
+  });
+
+  it('returns parsed:false for missing suites key', () => {
+    const result = parsePlaywrightOutput(JSON.stringify({ config: {} }));
+    assert.strictEqual(result.parsed, false);
+  });
+
+  it('handles empty suites', () => {
+    const json = JSON.stringify({ suites: [] });
+    const result = parsePlaywrightOutput(json);
+    assert.strictEqual(result.parsed, true);
+    assert.strictEqual(result.tests.length, 0);
+  });
+
+  it('uses error stack when message is missing', () => {
+    const json = JSON.stringify({
+      suites: [{
+        title: 'err.spec.ts',
+        file: 'tests/err.spec.ts',
+        specs: [{
+          title: 'stack test',
+          file: 'tests/err.spec.ts',
+          tests: [{
+            projectName: 'chromium',
+            status: 'unexpected',
+            results: [{ status: 'failed', duration: 100, error: { stack: 'Error: boom\n    at test.js:5' } }],
+          }],
+        }],
+      }],
+    });
+
+    const result = parsePlaywrightOutput(json);
+    assert.strictEqual(result.tests[0].failureMessage, 'Error: boom\n    at test.js:5');
+  });
+
+  it('uses file from suite when spec has no file', () => {
+    const json = JSON.stringify({
+      suites: [{
+        title: 'suite.spec.ts',
+        file: 'tests/suite.spec.ts',
+        specs: [{
+          title: 'test without file',
+          tests: [{
+            projectName: 'chromium',
+            status: 'expected',
+            results: [{ status: 'passed', duration: 100 }],
+          }],
+        }],
+      }],
+    });
+
+    const result = parsePlaywrightOutput(json);
+    assert.strictEqual(result.tests[0].file, 'tests/suite.spec.ts');
+  });
+});
+
 // ─── detectRunner ──────────────────────────────────────────────
 
 describe('detectRunner', () => {
@@ -352,6 +579,14 @@ describe('detectRunner', () => {
 
   it('detects node:test reference', () => {
     assert.strictEqual(detectRunner('some command with node:test'), 'node-test');
+  });
+
+  it('detects playwright', () => {
+    assert.strictEqual(detectRunner('npx playwright test'), 'playwright');
+  });
+
+  it('detects playwright with path', () => {
+    assert.strictEqual(detectRunner('npx playwright test tests/checkout.spec.ts'), 'playwright');
   });
 
   it('returns tap as fallback for unknown commands', () => {
@@ -380,6 +615,19 @@ describe('parseTestOutput', () => {
     const ndjson = JSON.stringify({ type: 'test:pass', data: { name: 'ok', nesting: 0, details: { duration_ms: 1 }, file: 'test.js' } });
     const result = parseTestOutput('node-test', ndjson);
     assert.strictEqual(result.parsed, true);
+  });
+
+  it('routes to playwright parser', () => {
+    const json = JSON.stringify({
+      suites: [{
+        title: 'test.spec.ts',
+        file: 'tests/test.spec.ts',
+        specs: [{ title: 'a test', file: 'tests/test.spec.ts', tests: [{ projectName: 'chromium', status: 'expected', results: [{ status: 'passed', duration: 100 }] }] }],
+      }],
+    });
+    const result = parseTestOutput('playwright', json);
+    assert.strictEqual(result.parsed, true);
+    assert.strictEqual(result.tests[0].name, 'test.spec.ts > a test');
   });
 
   it('returns parsed:false for unknown runner', () => {

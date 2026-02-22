@@ -44,9 +44,17 @@ export function registerTestCommand(program) {
         const jsonOutput = options.format === 'json';
 
         // Resolve which runner parser to use
-        const runner = options.runner === 'auto'
+        let runner = options.runner === 'auto'
           ? detectRunner(testCmd)
           : options.runner;
+
+        // node:test default reporter (spec) outputs to stderr, not stdout.
+        // Force TAP reporter for machine-parseable output on stdout.
+        let effectiveCmd = testCmd;
+        if (runner === 'node-test' && !testCmd.includes('--test-reporter')) {
+          effectiveCmd = testCmd.replace(/node\s+--test/, 'node --test --test-reporter tap');
+          runner = 'tap';
+        }
 
         const profile = FlakeProfile.fromConfig(merged);
         const registry = new AdapterRegistry();
@@ -68,7 +76,7 @@ export function registerTestCommand(program) {
 
         reporter.log(`FlakeMonster test harness`);
         reporter.log(`  Runs: ${runs} | Mode: ${profile.mode} | Base seed: ${baseSeed}`);
-        reporter.log(`  Command: ${testCmd}`);
+        reporter.log(`  Command: ${effectiveCmd}`);
         reporter.log(`  Patterns: ${globs.join(', ')}`);
         if (runner) {
           reporter.log(`  Runner: ${runner}`);
@@ -80,22 +88,22 @@ export function registerTestCommand(program) {
 
         const harnessTotalStart = Date.now();
         const results = [];
-        let lastManifest = null;
 
         for (let i = 0; i < runs; i++) {
           const runSeed = deriveSeed(baseSeed, `run:${i}`);
 
           if (inPlace) {
-            // Restore previous run's injections before re-injecting
-            if (lastManifest) {
-              await engine.restoreAll(projectRoot, lastManifest);
+            // Restore ALL matching files before re-injecting (not just manifest-tracked ones).
+            // Using glob-based restore prevents the cascade bug where a file drops
+            // out of the manifest and can never be restored by subsequent runs.
+            if (i > 0) {
+              await engine.restoreByGlobs(projectRoot, globs, merged.exclude);
             }
 
             // Inject directly into source
             const manifest = await engine.injectAll(projectRoot, globs, runSeed, merged.exclude);
             const flakeDir = getFlakeMonsterDir(projectRoot);
             await manifest.save(flakeDir);
-            lastManifest = manifest;
             reporter.printInjectionStats(manifest);
 
             // Run tests — stream output with sticky status line
@@ -117,7 +125,7 @@ export function registerTestCommand(program) {
 
             let exitCode, stdout, stderr, durationMs;
             try {
-              ({ exitCode, stdout, stderr } = await execAsync(testCmd, projectRoot, {
+              ({ exitCode, stdout, stderr } = await execAsync(effectiveCmd, projectRoot, {
                 onStdout: reporter.quiet ? undefined : (chunk) => sticky.writeAbove(chunk),
                 onStderr: reporter.quiet ? undefined : (chunk) => sticky.writeAboveStderr(chunk),
               }));
@@ -143,6 +151,7 @@ export function registerTestCommand(program) {
               tests: parsed?.tests ?? [],
             };
 
+            results.push(result);
             reporter.printRunResult(result, runs);
           } else {
             // Create workspace
@@ -177,7 +186,7 @@ export function registerTestCommand(program) {
 
             let exitCode, stdout, stderr, durationMs;
             try {
-              ({ exitCode, stdout, stderr } = await workspace.execAsync(testCmd, {
+              ({ exitCode, stdout, stderr } = await workspace.execAsync(effectiveCmd, {
                 onStdout: reporter.quiet ? undefined : (chunk) => sticky.writeAbove(chunk),
                 onStderr: reporter.quiet ? undefined : (chunk) => sticky.writeAboveStderr(chunk),
               }));
@@ -206,6 +215,7 @@ export function registerTestCommand(program) {
               tests: parsed?.tests ?? [],
             };
 
+            results.push(result);
             reporter.printRunResult(result, runs);
 
             // Cleanup
@@ -216,9 +226,10 @@ export function registerTestCommand(program) {
         }
 
         // Restore source files after all in-place runs
-        if (inPlace && lastManifest) {
-          const restoreResult = await engine.restoreAll(projectRoot, lastManifest);
+        if (inPlace) {
+          const restoreResult = await engine.restoreByGlobs(projectRoot, globs, merged.exclude);
           reporter.printRestorationResult(restoreResult);
+          await Manifest.delete(getFlakeMonsterDir(projectRoot));
         }
 
         // Run flakiness analysis if we have parsed results
@@ -250,10 +261,22 @@ export function registerTestCommand(program) {
         const anyFailed = results.some((r) => r.exitCode !== 0);
         if (anyFailed) process.exit(1);
       } catch (err) {
-        // If in-place mode fails mid-run, still try to restore
+        // If in-place mode fails mid-run, try to restore source files
         if (!options?.workspace) {
           console.error('\nError during in-place test run. Attempting to restore source files...');
-          console.error('If restoration fails, run: flake-monster restore');
+          try {
+            const root = resolve('.');
+            const recoveryRegistry = new AdapterRegistry();
+            recoveryRegistry.register(createJavaScriptAdapter());
+            const cfg = await loadConfig(root);
+            const recoveryEngine = new InjectorEngine(recoveryRegistry, FlakeProfile.fromConfig(mergeWithCliOptions(cfg, options)));
+            await recoveryEngine.restoreByGlobs(root, globs, mergeWithCliOptions(cfg, options).exclude);
+            await Manifest.delete(getFlakeMonsterDir(root));
+            console.error('Source files restored.');
+          } catch (restoreErr) {
+            console.error(`Failed to restore: ${restoreErr.message}`);
+            console.error('Run manually: flake-monster restore');
+          }
         }
         console.error(`Error: ${err.message}`);
         process.exit(1);

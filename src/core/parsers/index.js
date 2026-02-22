@@ -1,10 +1,12 @@
 import { parseJestOutput } from './jest.js';
 import { parseNodeTestOutput } from './node-test.js';
+import { parsePlaywrightOutput } from './playwright.js';
 import { parseTapOutput } from './tap.js';
 
 const parsers = {
   jest: parseJestOutput,
   'node-test': parseNodeTestOutput,
+  playwright: parsePlaywrightOutput,
   tap: parseTapOutput,
 };
 
@@ -18,6 +20,9 @@ export function detectRunner(testCommand) {
   }
   if (testCommand.includes('node --test') || testCommand.includes('node:test')) {
     return 'node-test';
+  }
+  if (testCommand.includes('playwright')) {
+    return 'playwright';
   }
   return 'tap';
 }

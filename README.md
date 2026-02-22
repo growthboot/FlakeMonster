@@ -57,7 +57,16 @@ flake-monster test --runs 5 --cmd "npm test"
 flake-monster test --cmd "npx playwright test" "src/**/*.js"
 ```
 
-**CI flake gate**, Block merges that introduce flaky tests.
+**CI flake gate**, Block merges that introduce flaky tests. Use the [GitHub Action](https://github.com/growthboot/FlakeMonster-Action) for automatic PR comments:
+
+```yaml
+# .github/workflows/flake-monster.yml
+- uses: growthboot/FlakeMonster-Action@v1
+  with:
+    test-command: 'npm test'
+```
+
+Or run the CLI directly in any CI environment:
 
 ```bash
 flake-monster test --runs 10 --cmd "npm test"
@@ -275,6 +284,10 @@ Recovery mode: scanning for injected lines...
 ```
 
 You see exactly which lines will be removed and why (`stamp`, `ident`, or `import`), then confirm before any files are modified.
+
+## Changelog
+
+See [VERSIONS.md](VERSIONS.md) for detailed version history.
 
 ## License
 
