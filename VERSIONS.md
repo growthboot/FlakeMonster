@@ -20,16 +20,19 @@ When a release is cut, move the Unreleased entries into a new version heading an
 
 ---
 
-## Unreleased (0.4.6)
+## Unreleased
 
-- **Fixed** — Test command no longer loses track of files between runs; between-run restoration now uses glob-based `restoreByGlobs` instead of manifest-based `restoreAll`, preventing the cascade bug where a file dropped from the manifest could never be restored by subsequent runs (reported by FSCode team)
-- **Fixed** — Error handler in test command now actually attempts source file restoration on crash instead of just printing a message
-- **Internal** — Added GitHub Action integration example to README
-- **Internal** — Added changelog link to README
+- _(no unreleased changes logged yet)_
 
 ---
 
 ## Released Versions
+
+### 0.4.6 — 2026-02-22 — `528efaa`
+- **Fixed** — Test command no longer loses track of files between runs; between-run restoration now uses glob-based `restoreByGlobs` instead of manifest-based `restoreAll`, preventing the cascade bug where a file dropped from the manifest could never be restored by subsequent runs (reported by FSCode team)
+- **Fixed** — Error handler in test command now actually attempts source file restoration on crash instead of just printing a message
+- **Internal** — Added GitHub Action integration example to README
+- **Internal** — Added changelog link to README
 
 ### 0.4.5 — 2026-02-22
 - **Fixed** — Test command `results` array was never populated (`results.push(result)` missing from both in-place and workspace code paths), causing JSON output to always report zero runs and zero tests — broke CI/GitHub Action integration

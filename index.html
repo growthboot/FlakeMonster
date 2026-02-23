@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>FlakeMonster, Surface flaky tests with deterministic delays</title>
+  <title>FlakeMonster — An async fuzzer for JavaScript</title>
   <link rel="icon" type="image/svg+xml" href="website/logo.svg">
   <link rel="stylesheet" href="website/styles.css">
 
@@ -94,9 +94,10 @@
         <a href="#code-demo">Injection</a>
         <a href="#seed-demo">Seeds</a>
         <a href="#skill-section">Agent Skill</a>
-        <a href="#ci-section">CI</a>
+        <a href="#ci-section">GitHub Action</a>
         <a href="#pricing-section">Pricing</a>
         <a href="#roadmap-section">Roadmap</a>
+        <a href="#mission-section">Mission</a>
         <a href="https://github.com/growthboot/FlakeMonster" target="_blank" rel="nofollow noopener">GitHub</a>
         <button class="theme-toggle" data-theme-toggle aria-label="Toggle dark mode"></button>
       </div>
@@ -108,7 +109,7 @@
     <div class="hero-content">
       <img src="website/logo.svg" alt="FlakeMonster logo" class="hero-logo">
       <h1>FlakeMonster</h1>
-      <p class="tagline">Surface flaky tests by injecting deterministic async delays</p>
+      <p class="tagline">An async fuzzer for JavaScript</p>
       <p class="hero-desc">
         <b>░&nbsp;&nbsp;Your test ran too fast and left a bug behind.</b>
       </p>
@@ -121,10 +122,9 @@
         <li>async operations happen in sync</li>
         <li>and race conditions hide</li>
       </ul>
-        That's why your tests are flaking.</p>
+      <p class="hero-desc">That's why your tests are flaking.</p>
       <p class="hero-desc">
-        Inject <code>await</code> delays between statements to surface bugs.</p>
-      </p>
+        Fuzz your async timing with deterministic <code>await</code> delays to surface the bugs that hide within.</p>
     </div>
     <div class="hero-scene">
       <svg class="hero-svg" viewBox="0 0 480 300" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -509,12 +509,12 @@
   <section id="ci-section">
     <div class="ci-header">
       <span class="ci-badge">New</span>
-      <h2>FlakeMonster CI</h2>
+      <h2><svg class="ci-gh-logo" width="28" height="28" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0016 8c0-4.42-3.58-8-8-8z"/></svg> GitHub Action</h2>
       <p class="ci-subtitle">Catch flaky tests on every pull request. Automatically.</p>
     </div>
 
     <div class="ci-layout">
-      <!-- Left: YAML setup -->
+      <!-- Left: Steps + Merge Guard -->
       <div class="ci-setup">
         <div class="ci-steps">
           <div class="ci-step">
@@ -560,25 +560,85 @@
           </div>
         </div>
 
-        <div class="ci-yaml">
-          <div class="ci-yaml-tab">
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="1" y="1" width="12" height="12" rx="2" stroke="currentColor" stroke-width="1.2"/><path d="M4 5l2 2-2 2" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/><line x1="7.5" y1="9" x2="10" y2="9" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
-            .github/workflows/flake-monster.yml
+        <!-- Mock GitHub PR Timeline + Merge Box -->
+        <div class="gh-timeline">
+          <div class="gh-timeline-item">
+            <div class="gh-timeline-badge">
+              <svg aria-hidden="true" height="16" viewBox="0 0 16 16" width="16" fill="currentColor"><path d="M11.93 8.5a4.002 4.002 0 0 1-7.86 0H.75a.75.75 0 0 1 0-1.5h3.32a4.002 4.002 0 0 1 7.86 0h3.32a.75.75 0 0 1 0 1.5Zm-1.43-.75a2.5 2.5 0 1 0-5 0 2.5 2.5 0 0 0 5 0Z"/></svg>
+            </div>
+            <div class="gh-timeline-body">
+              <img src="website/logo.svg" alt="" class="gh-timeline-avatar">
+              <span class="gh-timeline-msg">retrigger: wait for npm cache</span>
+              <span class="gh-timeline-sha">e9bf241</span>
+              <span class="gh-timeline-status gh-timeline-status-pass">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"/></svg>
+              </span>
+            </div>
           </div>
-          <pre class="ci-yaml-code"><span class="syn-kw">name</span><span class="syn-pun">:</span> <span class="syn-str">FlakeMonster</span>
-<span class="syn-kw">on</span><span class="syn-pun">:</span> <span class="syn-pun">[</span><span class="syn-str">pull_request</span><span class="syn-pun">]</span>
+          <div class="gh-timeline-item">
+            <div class="gh-timeline-badge">
+              <svg aria-hidden="true" height="16" viewBox="0 0 16 16" width="16" fill="currentColor"><path d="M11.93 8.5a4.002 4.002 0 0 1-7.86 0H.75a.75.75 0 0 1 0-1.5h3.32a4.002 4.002 0 0 1 7.86 0h3.32a.75.75 0 0 1 0 1.5Zm-1.43-.75a2.5 2.5 0 1 0-5 0 2.5 2.5 0 0 0 5 0Z"/></svg>
+            </div>
+            <div class="gh-timeline-body">
+              <img src="website/logo.svg" alt="" class="gh-timeline-avatar">
+              <span class="gh-timeline-msg">retrigger: action now fails on flake</span>
+              <span class="gh-timeline-sha">0b36d45</span>
+              <span class="gh-timeline-status gh-timeline-status-fail">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M3.72 3.72a.75.75 0 0 1 1.06 0L8 6.94l3.22-3.22a.749.749 0 0 1 1.275.326.749.749 0 0 1-.215.734L9.06 8l3.22 3.22a.749.749 0 0 1-.326 1.275.749.749 0 0 1-.734-.215L8 9.06l-3.22 3.22a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042L6.94 8 3.72 4.78a.75.75 0 0 1 0-1.06Z"/></svg>
+              </span>
+            </div>
+          </div>
+          <div class="gh-timeline-item">
+            <div class="gh-timeline-badge">
+              <svg aria-hidden="true" height="16" viewBox="0 0 16 16" width="16" fill="currentColor"><path d="M11.93 8.5a4.002 4.002 0 0 1-7.86 0H.75a.75.75 0 0 1 0-1.5h3.32a4.002 4.002 0 0 1 7.86 0h3.32a.75.75 0 0 1 0 1.5Zm-1.43-.75a2.5 2.5 0 1 0-5 0 2.5 2.5 0 0 0 5 0Z"/></svg>
+            </div>
+            <div class="gh-timeline-body">
+              <img src="website/logo.svg" alt="" class="gh-timeline-avatar">
+              <span class="gh-timeline-msg">retrigger: clean restore</span>
+              <span class="gh-timeline-sha">8315e73</span>
+              <span class="gh-timeline-status gh-timeline-status-fail">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M3.72 3.72a.75.75 0 0 1 1.06 0L8 6.94l3.22-3.22a.749.749 0 0 1 1.275.326.749.749 0 0 1-.215.734L9.06 8l3.22 3.22a.749.749 0 0 1-.326 1.275.749.749 0 0 1-.734-.215L8 9.06l-3.22 3.22a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042L6.94 8 3.72 4.78a.75.75 0 0 1 0-1.06Z"/></svg>
+              </span>
+            </div>
+          </div>
+        </div>
 
-<span class="syn-kw">jobs</span><span class="syn-pun">:</span>
-  <span class="syn-kw">flake-check</span><span class="syn-pun">:</span>
-    <span class="syn-kw">runs-on</span><span class="syn-pun">:</span> <span class="syn-str">ubuntu-latest</span>
-    <span class="syn-kw">steps</span><span class="syn-pun">:</span>
-      <span class="syn-pun">-</span> <span class="syn-kw">uses</span><span class="syn-pun">:</span> <span class="syn-str">actions/checkout@v4</span>
-      <span class="syn-pun">-</span> <span class="syn-kw">uses</span><span class="syn-pun">:</span> <span class="syn-str">actions/setup-node@v4</span>
-      <span class="syn-pun">-</span> <span class="syn-kw">run</span><span class="syn-pun">:</span> <span class="syn-str">npm ci</span>
-      <span class="syn-pun">-</span> <span class="syn-kw">uses</span><span class="syn-pun">:</span> <span class="syn-str">growthboot/FlakeMonster-Action@v1</span>
-        <span class="syn-kw">with</span><span class="syn-pun">:</span>
-          <span class="syn-kw">test-command</span><span class="syn-pun">:</span> <span class="syn-str">npm test</span>
-          <span class="syn-kw">runs</span><span class="syn-pun">:</span> <span class="syn-num">5</span></pre>
+        <div class="gh-mergebox">
+          <div class="gh-mergebox-section gh-mergebox-section-fail">
+            <div class="gh-mergebox-header">
+              <div class="gh-status-icon gh-status-fail">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M3.72 3.72a.75.75 0 0 1 1.06 0L8 6.94l3.22-3.22a.749.749 0 0 1 1.275.326.749.749 0 0 1-.215.734L9.06 8l3.22 3.22a.749.749 0 0 1-.326 1.275.749.749 0 0 1-.734-.215L8 9.06l-3.22 3.22a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042L6.94 8 3.72 4.78a.75.75 0 0 1 0-1.06Z"/></svg>
+              </div>
+              <div>
+                <strong>One check has failed</strong>
+                <span>1 failing check</span>
+              </div>
+            </div>
+            <div class="gh-check-item">
+              <span class="gh-check-fail-icon">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M2.343 13.657A8 8 0 1 1 13.658 2.343 8 8 0 0 1 2.343 13.657ZM6.03 4.97a.751.751 0 0 0-1.042.018.751.751 0 0 0-.018 1.042L6.94 8 4.97 9.97a.749.749 0 0 0 .326 1.275.749.749 0 0 0 .734-.215L8 9.06l1.97 1.97a.749.749 0 0 0 1.275-.326.749.749 0 0 0-.215-.734L9.06 8l1.97-1.97a.749.749 0 0 0-.326-1.275.749.749 0 0 0-.734.215L8 6.94Z"/></svg>
+              </span>
+              <img src="website/logo.svg" alt="" class="gh-check-avatar">
+              <div class="gh-check-info">
+                <strong>Flake Check / flake-monster (pull_request)</strong>
+                <span>Failing after 13s</span>
+              </div>
+            </div>
+          </div>
+          <div class="gh-mergebox-section gh-mergebox-section-pass">
+            <div class="gh-mergebox-header">
+              <div class="gh-status-icon gh-status-pass">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"/></svg>
+              </div>
+              <div>
+                <strong>No conflicts with base branch</strong>
+                <span>Merging can be performed automatically.</span>
+              </div>
+            </div>
+          </div>
+          <div class="gh-mergebox-footer">
+            <button class="gh-merge-btn" disabled>Merge pull request</button>
+          </div>
         </div>
       </div>
 
@@ -651,7 +711,7 @@
   <section id="pricing-section">
     <div class="pricing-header">
       <h2>Pricing</h2>
-      <p>The CLI is free forever. The CI product adds automation and insights for teams that ship fast.</p>
+      <p>The CLI is free forever. The GitHub Action adds automated flake detection to every pull request.</p>
     </div>
 
     <div class="pricing-cards">
@@ -675,7 +735,7 @@
         <p class="pricing-desc">Full CLI with inject, test, and restore. Run locally, run in CI, run anywhere.</p>
         <ul class="pricing-features">
           <li>Full CLI &amp; GitHub Action</li>
-          <li>50 CI checks per month</li>
+          <li>50 GitHub Action checks per month</li>
           <li>PR comments with results</li>
           <li>Community support</li>
         </ul>
@@ -702,11 +762,11 @@
           <div class="pricing-price">$29<span>/mo</span></div>
           <span class="pricing-period">per team</span>
         </div>
-        <p class="pricing-desc">For teams that need visibility across every repo. Track trends, get alerted, and stop flaky tests before they spread.</p>
+        <p class="pricing-desc">Gate every pull request with flake detection — no cap, no throttling. Stop flaky tests from reaching your main branch.</p>
         <ul class="pricing-features">
-          <li>Unlimited CI checks</li>
-          <li>Priority support</li>
+          <li>Unlimited GitHub Action checks</li>
           <li>Everything in Free</li>
+          <li>Priority support</li>
           <li>Cancel anytime</li>
         </ul>
         <a href="pricing.html" class="pricing-btn pricing-btn-primary">Get started</a>
@@ -811,6 +871,88 @@
     </div>
   </section>
 
+  <!-- Mission -->
+  <section id="mission-section">
+    <div class="mission-layout">
+      <div class="mission-monster">
+        <svg class="mission-svg" viewBox="0 0 140 130" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <radialGradient id="missionBodyGrad" cx="45%" cy="40%">
+              <stop offset="0%" stop-color="#5cd87a" stop-opacity="0.5"/>
+              <stop offset="100%" stop-color="#40b85c" stop-opacity="0"/>
+            </radialGradient>
+          </defs>
+
+          <g transform="translate(10, 5)">
+            <!-- Body -->
+            <ellipse cx="60" cy="68" rx="42" ry="40" fill="#40b85c"/>
+            <ellipse cx="60" cy="68" rx="42" ry="40" fill="url(#missionBodyGrad)"/>
+
+            <!-- Horns -->
+            <path d="M38 32 L30 10 L44 28Z" fill="#2d8a43"/>
+            <path d="M82 32 L90 10 L76 28Z" fill="#2d8a43"/>
+
+            <!-- Eye (looking up, thinking) -->
+            <circle cx="60" cy="60" r="18" fill="white"/>
+            <circle cx="56" cy="55" r="10" fill="#1a1a2e"/>
+            <circle cx="52" cy="52" r="3.5" fill="white"/>
+
+            <!-- Mouth (little grin) -->
+            <path d="M42 82 Q50 94 60 88 Q70 94 78 82" stroke="#1a1a2e" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+            <rect x="49" y="82" width="5" height="6" rx="1" fill="white"/>
+            <rect x="60" y="83" width="5" height="5" rx="1" fill="white"/>
+
+            <!-- Lightning crack -->
+            <path d="M85 38 L78 52 L84 52 L74 70" stroke="#ffd43b" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+
+            <!-- Left arm raised to head (scratching/thinking) -->
+            <path d="M20 65 Q4 52 14 34 Q20 24 32 28" stroke="#2d8a43" stroke-width="6" stroke-linecap="round" fill="none"/>
+
+            <!-- Right arm out (waving) -->
+            <path d="M100 65 Q114 52 108 36" stroke="#2d8a43" stroke-width="6" stroke-linecap="round" fill="none"/>
+            <path d="M108 36 L104 28" stroke="#2d8a43" stroke-width="4" stroke-linecap="round"/>
+            <path d="M108 36 L114 30" stroke="#2d8a43" stroke-width="4" stroke-linecap="round"/>
+
+            <!-- Feet -->
+            <ellipse cx="44" cy="106" rx="10" ry="5" fill="#2d8a43"/>
+            <ellipse cx="76" cy="106" rx="10" ry="5" fill="#2d8a43"/>
+          </g>
+        </svg>
+      </div>
+
+      <div class="mission-content">
+        <h2>Our Mission</h2>
+        <p class="mission-lead">What if you could throw static at your code and <b>listen</b> for the bugs that surface?</p>
+
+        <div class="mission-points">
+          <div class="mission-point">
+            <span class="mission-icon">~</span>
+            <div>
+              <strong>Randomness is interesting</strong>
+              <p>Randomness is one of the most underrated primitives in software. Fuzz testing, A/B experiments, fault injection, random isolation. A coin flip in the right place reveals things that careful analysis never will. We think the surface area for this kind of thinking is way underestimated, and we're ready to start exploring it with you.</p>
+            </div>
+          </div>
+
+          <div class="mission-point">
+            <span class="mission-icon">&gt;</span>
+            <div>
+              <strong>Not everything needs AI</strong>
+              <p>AI is great at many things, but some problems have cheaper, faster, more deterministic solutions. Algorithmic tools run in milliseconds, cost nothing to operate, and give you the same answer every time. There's a huge class of bugs that can be caught without a model ever seeing your code.</p>
+            </div>
+          </div>
+
+          <div class="mission-point">
+            <span class="mission-icon">*</span>
+            <div>
+              <strong>Beyond delays</strong>
+              <p>Reordering, mutation, boundary injection, symbolic constraints. Algorithmic techniques can catch race conditions, state bugs, and logic errors without understanding a single line of code. We're interested in tools that find mistakes by probing how code behaves, not by trying to read it.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <!-- Footer -->
   <footer>
     <div class="footer-wave">
@@ -845,7 +987,7 @@
         </div>
         <div class="footer-col">
           <h4>Product</h4>
-          <a href="#ci-section">CI Integration</a>
+          <a href="#ci-section">GitHub Action</a>
           <a href="#pricing-section">Pricing</a>
           <a href="#roadmap-section">Roadmap</a>
         </div>
