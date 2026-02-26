@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Troubleshooting — FlakeMonster Docs</title>
+  <link rel="icon" type="image/svg+xml" href="../website/logo.svg">
+  <link rel="stylesheet" href="../website/styles.css">
+  <link rel="stylesheet" href="docs.css">
+  <script>
+    (function() {
+      var t = localStorage.getItem('theme');
+      if (!t) t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-theme', t);
+    })();
+  </script>
+</head>
+<body class="docs-page">
+  <main id="doc-content">
+    <h1>Troubleshooting</h1>
+    <p class="doc-lead">Common issues and their solutions. If you don't find your answer here, <a href="https://github.com/growthboot/FlakeMonster/issues">open an issue on GitHub</a>.</p>
+
+    <!-- ────────────────────────────────────────── -->
+    <h2 id="stale-injection">Stale Injection Detected</h2>
+    <p><strong>Symptom:</strong> FlakeMonster warns "Stale injection detected" when running <code>test</code> or <code>inject</code>.</p>
+    <p><strong>Cause:</strong> A previous run was interrupted before restore completed. The manifest file still exists, indicating that source files contain injected code from a prior session.</p>
+    <p><strong>Solution:</strong> Run <code>flake-monster restore</code> to clean up the stale injection. The <code>test</code> command also auto-restores before starting, so in most cases this resolves itself on the next run.</p>
+    <pre><span class="syn-pun">$</span> npx flake-monster restore
+<span class="syn-cmt">Restored 12 file(s), removed 47 injection(s)</span></pre>
+    <blockquote>
+      <p><strong>Tip:</strong> If you interrupted a run with Ctrl+C, FlakeMonster's shutdown handler usually restores files automatically. This warning only appears if the process was killed forcefully (e.g., <code>kill -9</code>) or crashed unexpectedly.</p>
+    </blockquote>
+
+    <!-- ────────────────────────────────────────── -->
+    <h2 id="crash-recovery">Automatic Crash Recovery (In-Place Mode)</h2>
+    <p>When using in-place mode, the <code>test</code> command wraps its entire run loop in error handling. If a crash or unexpected error occurs mid-run, FlakeMonster automatically attempts to restore all source files before exiting. This prevents your working tree from being left in an injected state after a failure.</p>
+    <p>If automatic recovery succeeds, you will see:</p>
+    <pre><span class="syn-cmt">Error during in-place test run. Attempting to restore source files...</span>
+<span class="syn-cmt">Source files restored.</span></pre>
+    <p>If automatic recovery itself fails (e.g., due to disk errors), FlakeMonster will print the error and suggest running <code>flake-monster restore</code> manually.</p>
+
+    <!-- ────────────────────────────────────────── -->
+    <h2 id="double-injection">Double Injection</h2>
+    <p><strong>Symptom:</strong> Delays appear twice in the same file, or you see nested marker comments.</p>
+    <p><strong>Cause:</strong> Injecting into files that already have injections. This can happen if the manifest was manually deleted while injected code was still present.</p>
+    <p><strong>Solution:</strong> The manifest guard prevents this automatically under normal usage. If you see doubled delays, run <code>flake-monster restore</code> first, then re-inject:</p>
+    <pre><span class="syn-pun">$</span> npx flake-monster restore
+<span class="syn-pun">$</span> npx flake-monster inject <span class="syn-kw">--seed</span> <span class="syn-num">12345</span></pre>
+    <blockquote>
+      <p><strong>Tip:</strong> If <code>restore</code> without <code>--recover</code> doesn't fully clean up (because the manifest is missing), use recovery mode: <code>flake-monster restore --recover</code>. This scans for all traces of injected code regardless of manifest state.</p>
+    </blockquote>
+
+    <!-- ────────────────────────────────────────── -->
+    <h2 id="runtime-not-found">Cannot Find Module flake-monster.runtime.js</h2>
+    <p><strong>Symptom:</strong> Tests fail with <code>ERR_MODULE_NOT_FOUND</code> or <code>Cannot find module './flake-monster.runtime.js'</code>.</p>
+    <p><strong>Cause:</strong> The runtime file wasn't copied to the project root, or the relative import path is wrong. This typically happens when injection is interrupted before the runtime copy step completes.</p>
+    <p><strong>Solution:</strong> Run <code>flake-monster restore</code> and re-inject. The runtime is copied automatically during injection.</p>
+    <pre><span class="syn-pun">$</span> npx flake-monster restore
+<span class="syn-pun">$</span> npx flake-monster inject</pre>
+    <p>If the issue persists, check that your glob patterns match files within the project root. Files outside the project root will produce incorrect runtime import paths.</p>
+
+    <!-- ────────────────────────────────────────── -->
+    <h2 id="import-path">Import Path Is Wrong</h2>
+    <p><strong>Symptom:</strong> Injected files import the runtime with an incorrect relative path (e.g., <code>../../../flake-monster.runtime.js</code> when it should be <code>../flake-monster.runtime.js</code>).</p>
+    <p><strong>Cause:</strong> FlakeMonster computes import paths relative from each file to the project root. Unusual directory structures (symlinks, files outside the project tree, deeply nested paths) may produce incorrect paths.</p>
+    <p><strong>Solution:</strong> Ensure your source files are within the project root. The path is computed based on directory depth:</p>
+    <table>
+      <thead>
+        <tr>
+          <th>File Location</th>
+          <th>Generated Import Path</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>app.js</code></td>
+          <td><code>./flake-monster.runtime.js</code></td>
+        </tr>
+        <tr>
+          <td><code>src/user.js</code></td>
+          <td><code>../flake-monster.runtime.js</code></td>
+        </tr>
+        <tr>
+          <td><code>src/api/client.js</code></td>
+          <td><code>../../flake-monster.runtime.js</code></td>
+        </tr>
+      </tbody>
+    </table>
+    <p>If you have files in unexpected locations, narrow your <code>include</code> patterns to only match files within the project tree.</p>
+
+    <!-- ────────────────────────────────────────── -->
+    <h2 id="node-test-crash">node:test Crashes with Exit Code 7</h2>
+    <p><strong>Symptom:</strong> When using <code>node --test</code>, the process exits with code 7 and no useful output.</p>
+    <p><strong>Cause:</strong> Node 20 does not have a built-in <code>json</code> test reporter. Using <code>--test-reporter json</code> causes this crash.</p>
+    <p><strong>Solution:</strong> FlakeMonster automatically uses <code>--test-reporter tap</code> instead when it detects <code>node --test</code> in your command. If you're specifying the reporter manually, use <code>tap</code> not <code>json</code>:</p>
+    <pre><span class="syn-pun">$</span> npx flake-monster test <span class="syn-kw">--cmd</span> <span class="syn-str">"node --test --test-reporter tap test/*.test.js"</span></pre>
+    <blockquote>
+      <p><strong>Tip:</strong> The default <code>spec</code> reporter in <code>node --test</code> outputs to stderr, not stdout. FlakeMonster's auto-detection handles this, but if you're using a custom command, make sure the reporter writes to stdout so the parser can read it.</p>
+    </blockquote>
+
+    <!-- ────────────────────────────────────────── -->
+    <h2 id="no-tests-parsed">No Tests Parsed</h2>
+    <p><strong>Symptom:</strong> FlakeMonster completes runs but shows "0 tests found" or can't identify individual test results.</p>
+    <p><strong>Cause:</strong> The test runner's output format wasn't recognized by the parser. This happens when FlakeMonster can't auto-detect your runner, or when the runner produces output in an unexpected format.</p>
+    <p><strong>Solution:</strong></p>
+    <ul>
+      <li>Use <code>--runner &lt;type&gt;</code> to explicitly specify the runner: <code>jest</code>, <code>node-test</code>, <code>playwright</code>, or <code>tap</code>.</li>
+      <li>Ensure your test command produces parseable output. Each runner requires specific output flags:</li>
+    </ul>
+    <table>
+      <thead>
+        <tr>
+          <th>Runner</th>
+          <th>Required Flag</th>
+          <th>Example</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Jest</td>
+          <td><code>--json</code></td>
+          <td><code>npx jest --json</code></td>
+        </tr>
+        <tr>
+          <td>Playwright</td>
+          <td><code>--reporter=json</code></td>
+          <td><code>npx playwright test --reporter=json</code></td>
+        </tr>
+        <tr>
+          <td>node:test</td>
+          <td><code>--test-reporter tap</code></td>
+          <td><code>node --test --test-reporter tap</code></td>
+        </tr>
+        <tr>
+          <td>TAP</td>
+          <td>(native TAP output)</td>
+          <td><code>node --test --test-reporter tap</code></td>
+        </tr>
+      </tbody>
+    </table>
+    <p>FlakeMonster auto-adds these flags for known runners, but custom setups or wrapper scripts may need manual configuration.</p>
+    <pre><span class="syn-pun">$</span> npx flake-monster test <span class="syn-kw">--runner</span> <span class="syn-str">jest</span> <span class="syn-kw">--cmd</span> <span class="syn-str">"npx jest --json"</span></pre>
+
+    <!-- ────────────────────────────────────────── -->
+    <h2 id="linter-rewrite">Linter/Formatter Rewrites Injected Code</h2>
+    <p><strong>Symptom:</strong> ESLint, Prettier, or other tools modify the injected code (reformatting, adding semicolons, changing quotes, etc.).</p>
+    <p><strong>Cause:</strong> This is expected behavior. Linters and formatters will reformat any code they find, including injected FlakeMonster statements.</p>
+    <p><strong>Solution:</strong> This is fine and does not affect FlakeMonster's operation. The removal process uses text-based matching on two unique identifiers that survive any reformatting:</p>
+    <ul>
+      <li>The marker comment stamp: <code>jt92-se2j!</code></li>
+      <li>The <code>__FlakeMonster__</code> identifier</li>
+    </ul>
+    <p>Restore will work correctly even after linters, formatters, or other tools have modified the injected code. No special configuration is needed.</p>
+    <blockquote>
+      <p><strong>Tip:</strong> If you want to suppress linter warnings during injection, you can add <code>flake-monster.runtime.js</code> to your <code>.eslintignore</code> or equivalent. But this is purely cosmetic — it won't affect FlakeMonster's behavior.</p>
+    </blockquote>
+
+    <!-- ────────────────────────────────────────── -->
+    <h2 id="always-failing">All Tests Always Fail</h2>
+    <p><strong>Symptom:</strong> Every test fails in every run, not just some.</p>
+    <p><strong>Cause:</strong> These are pre-existing bugs, not flakiness. FlakeMonster classifies tests that fail in all runs as "always-failing" and reports them separately from flaky tests.</p>
+    <p><strong>Solution:</strong> Fix the underlying test failures first, then re-run FlakeMonster to check for timing-related flakiness. A test must pass in at least one run and fail in at least one other to be classified as flaky.</p>
+    <pre><span class="syn-cmt"># First, make sure tests pass without FlakeMonster</span>
+<span class="syn-pun">$</span> npm test
+<span class="syn-cmt"># If tests pass, then run FlakeMonster</span>
+<span class="syn-pun">$</span> npx flake-monster test <span class="syn-kw">--cmd</span> <span class="syn-str">"npm test"</span></pre>
+    <blockquote>
+      <p><strong>Tip:</strong> Check the JSON output (<code>--format json</code>) for the <code>analysis.alwaysFailingTests</code> array to see which tests are consistently broken.</p>
+    </blockquote>
+
+    <!-- ────────────────────────────────────────── -->
+    <h2 id="ci-failures">Tests Pass Locally But Fail in CI</h2>
+    <p><strong>Symptom:</strong> FlakeMonster finds no flakes locally but the GitHub Action reports failures.</p>
+    <p><strong>Cause:</strong> CI environments have different timing characteristics compared to local machines: slower disk I/O, shared CPU, network latency, and less available memory. These differences can expose timing-dependent issues that fast local machines hide.</p>
+    <p><strong>Solution:</strong> Try running locally with higher delays to simulate a slower environment:</p>
+    <pre><span class="syn-pun">$</span> npx flake-monster test <span class="syn-kw">--min-delay</span> <span class="syn-num">10</span> <span class="syn-kw">--max-delay</span> <span class="syn-num">200</span> <span class="syn-kw">--cmd</span> <span class="syn-str">"npm test"</span></pre>
+    <p>Or use <code>--mode hardcore</code> for more thorough coverage with maximum injection density:</p>
+    <pre><span class="syn-pun">$</span> npx flake-monster test <span class="syn-kw">--mode</span> <span class="syn-str">hardcore</span> <span class="syn-kw">--min-delay</span> <span class="syn-num">10</span> <span class="syn-kw">--max-delay</span> <span class="syn-num">200</span> <span class="syn-kw">--runs</span> <span class="syn-num">20</span> <span class="syn-kw">--cmd</span> <span class="syn-str">"npm test"</span></pre>
+    <blockquote>
+      <p><strong>Tip:</strong> CI environments often expose real flakiness that your local machine is fast enough to mask. If FlakeMonster finds flakes in CI but not locally, those are genuine issues worth investigating.</p>
+    </blockquote>
+
+    <!-- ────────────────────────────────────────── -->
+    <h2 id="recovery-mode">Recovery Mode</h2>
+    <p><strong>Symptom:</strong> Normal <code>restore</code> doesn't fully clean up injected code (rare edge case). This can happen if the manifest file was corrupted, manually deleted, or if files were moved after injection.</p>
+    <p><strong>Solution:</strong> Use recovery mode for interactive cleanup:</p>
+    <pre><span class="syn-pun">$</span> npx flake-monster restore <span class="syn-kw">--recover</span></pre>
+    <p>Recovery mode scans all source files for any remaining traces of FlakeMonster injection. It matches on three patterns and labels each match with a reason:</p>
+    <ul>
+      <li><code>[stamp]</code> — the marker comment stamp <code>@flake-monster[jt92-se2j!]</code></li>
+      <li><code>[ident]</code> — the <code>__FlakeMonster__</code> identifier in delay calls</li>
+      <li><code>[import]</code> — the runtime import statement</li>
+    </ul>
+    <p>Example output:</p>
+    <pre><span class="syn-pun">$</span> npx flake-monster restore <span class="syn-kw">--recover</span>
+<span class="syn-cmt">Scanning all source files...</span>
+
+  <span class="syn-str">src/api/client.js</span> (<span class="syn-num">3</span> matches):
+    L2  [import] <span class="syn-kw">import</span> { __FlakeMonster__ } <span class="syn-kw">from</span> <span class="syn-str">'../flake-monster.runtime.js'</span>;
+    L15 [stamp]  <span class="syn-kw">await</span> __FlakeMonster__(<span class="syn-num">23</span>); <span class="syn-cmt">// @flake-monster[jt92-se2j!] v1</span>
+    L42 [stamp]  <span class="syn-kw">await</span> __FlakeMonster__(<span class="syn-num">7</span>);  <span class="syn-cmt">// @flake-monster[jt92-se2j!] v1</span>
+
+  <span class="syn-str">src/utils/cache.js</span> (<span class="syn-num">2</span> matches):
+    L1  [import] <span class="syn-kw">import</span> { __FlakeMonster__ } <span class="syn-kw">from</span> <span class="syn-str">'../flake-monster.runtime.js'</span>;
+    L28 [stamp]  <span class="syn-kw">await</span> __FlakeMonster__(<span class="syn-num">31</span>); <span class="syn-cmt">// @flake-monster[jt92-se2j!] v1</span>
+
+  Total: <span class="syn-num">5</span> line(s) across <span class="syn-num">2</span> file(s)
+
+  Remove these lines? (y/N) <span class="syn-kw">y</span>
+  <span class="syn-cmt">Recovered 2 file(s), removed 5 line(s)</span></pre>
+    <p>Each matched line is shown with its line number and match reason before any changes are made, so you can review exactly what will be removed.</p>
+
+    <!-- ────────────────────────────────────────── -->
+    <h2 id="getting-help">Getting Help</h2>
+    <p>If you're stuck on an issue not covered here, there are a few ways to get help:</p>
+    <ul>
+      <li><strong>Open an issue on GitHub:</strong> <a href="https://github.com/growthboot/FlakeMonster/issues">github.com/growthboot/FlakeMonster/issues</a></li>
+      <li><strong>Include diagnostic information</strong> to help with debugging:
+        <ul>
+          <li>FlakeMonster version (<code>npx flake-monster --version</code>)</li>
+          <li>Node.js version (<code>node --version</code>)</li>
+          <li>The full error output</li>
+          <li>Your config file (<code>.flakemonsterrc.json</code>) if you have one</li>
+          <li>The CLI command you ran</li>
+        </ul>
+      </li>
+    </ul>
+    <p>When reporting an issue, including the seed number from the failing run is especially helpful. It allows the maintainers to reproduce the exact same injection pattern:</p>
+    <pre><span class="syn-pun">$</span> npx flake-monster test <span class="syn-kw">--runs</span> <span class="syn-num">1</span> <span class="syn-kw">--seed</span> <span class="syn-num">948271536</span> <span class="syn-kw">--cmd</span> <span class="syn-str">"npm test"</span></pre>
+
+    <div class="doc-nav-links">
+      <a href="how-it-works.html" class="doc-nav-link prev">
+        <span class="doc-nav-link-label">Previous</span>
+        <span class="doc-nav-link-title">How It Works</span>
+      </a>
+      <span></span>
+    </div>
+  </main>
+  <script type="module" src="components/layout.js"></script>
+</body>
+</html>

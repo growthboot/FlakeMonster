@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Getting Started — FlakeMonster Docs</title>
+  <link rel="icon" type="image/svg+xml" href="../website/logo.svg">
+  <link rel="stylesheet" href="../website/styles.css">
+  <link rel="stylesheet" href="docs.css">
+  <script>
+    (function() {
+      var t = localStorage.getItem('theme');
+      if (!t) t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-theme', t);
+    })();
+  </script>
+</head>
+<body class="docs-page">
+
+  <main id="doc-content">
+    <h1>Getting Started</h1>
+    <p class="doc-lead">FlakeMonster is an async fuzzer for JavaScript. It injects deterministic timing delays into your code to surface the flaky tests that hide in fast environments.</p>
+
+    <h2 id="why">Why FlakeMonster?</h2>
+    <p>In your development environment, async operations resolve instantly, calls happen in sync, and race conditions hide. Your tests pass locally but flake in CI because the timing is different.</p>
+    <p>FlakeMonster fuzzes your async timing with deterministic <code>await</code> delays. Same seed, same delays, every run. When a test fails, you get the exact seed to reproduce it.</p>
+
+    <h2 id="install">Installation</h2>
+    <p>FlakeMonster requires Node.js 18 or later.</p>
+    <pre><span class="syn-pun">$</span> npm install flake-monster</pre>
+    <p>Or run directly with <code>npx</code> (no install needed):</p>
+    <pre><span class="syn-pun">$</span> npx flake-monster test --cmd <span class="syn-str">"npm test"</span></pre>
+
+    <h2 id="quick-start">Quick Start</h2>
+    <p>Run FlakeMonster against your test suite in one command:</p>
+    <pre><span class="syn-pun">$</span> npx flake-monster test --cmd <span class="syn-str">"npm test"</span></pre>
+    <p>This will:</p>
+    <ol>
+      <li><strong>Inject</strong> deterministic async delays into your source files</li>
+      <li><strong>Run</strong> your test command 10 times, each with a different seed</li>
+      <li><strong>Analyze</strong> results to find tests that pass sometimes and fail sometimes</li>
+      <li><strong>Restore</strong> your source files to their original state</li>
+      <li><strong>Report</strong> which tests are flaky and which seeds triggered failures</li>
+    </ol>
+
+    <h2 id="output">Reading the Output</h2>
+    <p>After running, FlakeMonster prints a summary like this:</p>
+    <pre>FlakeMonster v0.4.6  seed=3221704130  mode=medium  runs=10
+
+Run  1/10 PASS (seed=3221704130)
+Run  2/10 PASS (seed=1847293651)
+Run  3/10 FAIL (seed=948271536)
+Run  4/10 PASS (seed=2736481920)
+...
+Run 10/10 PASS (seed=1029384756)
+
+<span class="syn-cmt">── Results ──</span>
+
+2 flaky tests detected:
+
+  checkout > applies discount
+    Failed seeds: 948271536, 1573920846
+    Flaky rate: 20%
+
+  auth > refresh expired token
+    Failed seed: 948271536
+    Flaky rate: 10%
+
+13 tests stable across all runs.</pre>
+
+    <p>Each failing run shows its seed. Use that seed to reproduce the exact failure:</p>
+    <pre><span class="syn-pun">$</span> npx flake-monster test --runs <span class="syn-num">1</span> --seed <span class="syn-num">948271536</span> --cmd <span class="syn-str">"npm test"</span></pre>
+
+    <h2 id="next-steps">Next Steps</h2>
+    <ul>
+      <li><a href="cli-reference.html">CLI Reference</a> — All commands and flags</li>
+      <li><a href="configuration.html">Configuration</a> — Set up a config file for your project</li>
+      <li><a href="injection-modes.html">Injection Modes</a> — Choose between light, medium, and hardcore</li>
+      <li><a href="github-action.html">GitHub Action</a> — Automate flake detection on every PR</li>
+      <li><a href="agent-skill.html">Agent Skill</a> — Use FlakeMonster with Claude Code, Cursor, and more</li>
+    </ul>
+
+    <div class="doc-nav-links">
+      <span></span>
+      <a href="cli-reference.html" class="doc-nav-link next">
+        <span class="doc-nav-link-label">Next</span>
+        <span class="doc-nav-link-title">CLI Reference</span>
+      </a>
+    </div>
+  </main>
+
+  <script type="module" src="components/layout.js"></script>
+</body>
+</html>

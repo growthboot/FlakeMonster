@@ -24,19 +24,19 @@ export function registerInjectCommand(program) {
     .command('inject')
     .description('Inject async delays into source files')
     .argument('[globs...]', 'File patterns to process', ['src/**/*.js'])
-    .option('-m, --mode <mode>', 'Injection density: light, medium, hardcore', 'medium')
-    .option('-s, --seed <seed>', 'Random seed for deterministic delays (or "auto")', 'auto')
+    .option('-m, --mode <mode>', 'Injection density: light, medium, hardcore')
+    .option('-s, --seed <seed>', 'Random seed for deterministic delays (or "auto")')
     .option('--in-place', 'Modify files in-place (default)', true)
     .option('--workspace', 'Create a workspace copy instead of modifying files in-place', false)
-    .option('--min-delay <ms>', 'Minimum delay in milliseconds', '0')
-    .option('--max-delay <ms>', 'Maximum delay in milliseconds', '50')
+    .option('--min-delay <ms>', 'Minimum delay in milliseconds')
+    .option('--max-delay <ms>', 'Maximum delay in milliseconds')
     .option('-e, --exclude <patterns...>', 'Glob patterns to exclude (appends to config defaults)')
     .action(async (globs, options) => {
       try {
         const projectRoot = resolve('.');
         const config = await loadConfig(projectRoot);
         const merged = mergeWithCliOptions(config, options);
-        const seed = parseSeed(options.seed);
+        const seed = parseSeed(options.seed ?? merged.seed ?? 'auto');
 
         const profile = FlakeProfile.fromConfig(merged);
         const registry = new AdapterRegistry();

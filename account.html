@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FlakeMonster — Account</title>
+  <link rel="icon" type="image/svg+xml" href="website/logo.svg">
+  <link rel="stylesheet" href="website/styles.css">
+
+  <script>
+    (function() {
+      var t = localStorage.getItem('theme');
+      if (!t) t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-theme', t);
+      document.addEventListener('DOMContentLoaded', function() {
+        document.querySelectorAll('[data-theme-toggle]').forEach(function(btn) {
+          btn.addEventListener('click', function() {
+            var next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', next);
+            localStorage.setItem('theme', next);
+          });
+        });
+      });
+    })();
+  </script>
+</head>
+<body>
+
+  <!-- Top Nav -->
+  <nav class="top-nav">
+    <div class="top-nav-inner">
+      <a href="index.html" class="nav-brand">FlakeMonster</a>
+      <div class="nav-links">
+        <a href="index.html#ci-section">CI</a>
+        <a href="index.html#pricing-section">Pricing</a>
+        <a href="docs/">Docs</a>
+        <a href="https://github.com/growthboot/FlakeMonster">GitHub</a>
+        <a href="account.html" class="nav-account-link">Account</a>
+        <button class="theme-toggle" data-theme-toggle aria-label="Toggle dark mode"></button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Loading -->
+  <div id="dash-loading" class="dash-loading">
+    <p>Loading...</p>
+  </div>
+
+  <!-- State: Not signed in -->
+  <div id="dash-signed-out" style="display:none">
+    <section class="setup-page-header">
+      <h1>Account</h1>
+      <p>Sign in to access your FlakeMonster account.</p>
+    </section>
+    <div class="welcome-content">
+      <div class="welcome-card">
+        <button class="welcome-google-btn" id="google-signin-btn">
+          <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+          Sign in with Google
+        </button>
+        <div class="welcome-msg welcome-msg-error" id="auth-error"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- State: No subscription -->
+  <div id="dash-no-sub" style="display:none">
+    <section class="setup-page-header">
+      <h1>Account</h1>
+      <p>Signed in as <strong id="nosub-email"></strong></p>
+    </section>
+    <div class="welcome-content">
+      <div class="welcome-card">
+        <h3>No Active Subscription</h3>
+        <p>Subscribe to Pro to unlock unlimited checks, analytics, and your full account.</p>
+        <a href="pricing.html" class="welcome-billing-btn" style="text-decoration:none;display:inline-flex">Subscribe to Pro</a>
+      </div>
+
+      <div class="welcome-card welcome-card-danger" id="nosub-delete-card">
+        <h3>Delete Account</h3>
+        <p>Remove your FlakeMonster account and all associated data. This cannot be undone.</p>
+        <button class="welcome-delete-btn" id="nosub-delete-btn">Delete my account</button>
+        <div class="welcome-confirm" id="nosub-delete-confirm">
+          <label>Type <strong>DELETE</strong> to confirm:</label>
+          <input type="text" id="nosub-confirm-input" autocomplete="off">
+          <button class="welcome-confirm-btn" id="nosub-confirm-delete-btn" disabled>Confirm Deletion</button>
+        </div>
+        <div class="welcome-msg welcome-msg-error" id="nosub-delete-error"></div>
+      </div>
+
+      <div style="text-align:center;padding:16px 0">
+        <button class="welcome-signout-btn" id="nosub-signout-btn">Sign out</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- State: Pro dashboard -->
+  <div id="dash-pro" style="display:none">
+    <section class="setup-page-header">
+      <h1>Account</h1>
+      <p>
+        Signed in as <strong id="pro-email"></strong>
+        <button class="welcome-signout-btn" id="signout-btn">Sign out</button>
+      </p>
+    </section>
+
+    <div class="welcome-content">
+      <!-- Analytics summary -->
+      <div class="dash-stats" id="dash-stats">
+        <div class="dash-stat-card">
+          <span class="dash-stat-value" id="stat-total-runs">--</span>
+          <span class="dash-stat-label">Checks this month</span>
+        </div>
+        <div class="dash-stat-card">
+          <span class="dash-stat-value" id="stat-flaky-found">--</span>
+          <span class="dash-stat-label">Flaky tests found</span>
+        </div>
+        <div class="dash-stat-card">
+          <span class="dash-stat-value" id="stat-total-tests">--</span>
+          <span class="dash-stat-label">Tests analyzed</span>
+        </div>
+      </div>
+
+      <!-- Empty state: Setup guide -->
+      <div id="dash-empty" style="display:none">
+        <div class="welcome-card">
+          <h3>Get Started</h3>
+          <p>No test runs recorded yet. Follow the setup guide to run your first flake check.</p>
+
+          <div class="welcome-testrun-steps">
+            <div class="welcome-testrun-step">
+              <span class="welcome-testrun-num">1</span>
+              <div>
+                <strong>Add the workflow file</strong>
+                <p>Add the GitHub Action to your repo. <a href="setup.html">Setup guide</a></p>
+              </div>
+            </div>
+            <div class="welcome-testrun-step">
+              <span class="welcome-testrun-num">2</span>
+              <div>
+                <strong>Create a test commit</strong>
+                <p>Push a branch and open a pull request. FlakeMonster triggers automatically on <code>pull_request</code> events.</p>
+              </div>
+            </div>
+            <div class="welcome-testrun-step">
+              <span class="welcome-testrun-num">3</span>
+              <div>
+                <strong>Wait for the GitHub comment</strong>
+                <p>Within a couple of minutes you'll see a comment from FlakeMonster with your results.</p>
+              </div>
+            </div>
+            <div class="welcome-testrun-step">
+              <span class="welcome-testrun-num">4</span>
+              <div>
+                <strong>Come back here</strong>
+                <p>Your results will appear on this page with analytics and full test logs.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Run browser -->
+      <div id="dash-runs" style="display:none">
+        <div class="welcome-card">
+          <h3>Recent Runs</h3>
+          <div class="dash-run-list" id="run-list"></div>
+        </div>
+      </div>
+
+      <!-- Run detail -->
+      <div id="dash-run-detail" style="display:none">
+        <div class="welcome-card">
+          <button class="dash-back-btn" id="back-to-runs">&larr; Back to runs</button>
+          <div id="run-detail-content"></div>
+        </div>
+      </div>
+
+      <!-- Manage Subscription -->
+      <div class="welcome-card" id="billing-card">
+        <h3>Manage Your Subscription</h3>
+        <p>View invoices, update your payment method, or cancel your subscription.</p>
+        <button class="welcome-billing-btn" id="billing-btn">Open Billing Portal</button>
+        <p class="welcome-billing-note">Powered by Stripe. Opens in a new tab.</p>
+        <div class="welcome-msg welcome-msg-error" id="billing-error"></div>
+      </div>
+
+      <!-- Delete Account -->
+      <div class="welcome-card welcome-card-danger" id="delete-card">
+        <h3>Delete Account</h3>
+        <p>This will cancel your subscription and permanently delete all data we store for <strong id="delete-repo-name"></strong>. This cannot be undone.</p>
+        <button class="welcome-delete-btn" id="delete-btn">Delete my account</button>
+        <div class="welcome-confirm" id="delete-confirm">
+          <label>Type <strong id="confirm-repo-name"></strong> to confirm:</label>
+          <input type="text" id="confirm-input" autocomplete="off">
+          <button class="welcome-confirm-btn" id="confirm-delete-btn" disabled>Confirm Deletion</button>
+        </div>
+        <div class="welcome-msg welcome-msg-error" id="delete-error"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer>
+    <div class="footer-inner" style="padding-top:32px">
+      <div class="footer-bottom">
+        <span>CLI licensed under MIT</span>
+        <span class="footer-sep">&middot;</span>
+        <a href="index.html" style="color:var(--accent);text-decoration:none">Back to FlakeMonster</a>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Firebase Auth SDK -->
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.4.0/firebase-app.js';
+    import { getAuth, signInWithPopup, signOut, onAuthStateChanged, GoogleAuthProvider } from 'https://www.gstatic.com/firebasejs/11.4.0/firebase-auth.js';
+    import { firebaseConfig } from './website/firebase-config.js';
+
+    const app = initializeApp(firebaseConfig);
+
+    const auth = getAuth(app);
+    const provider = new GoogleAuthProvider();
+
+    const CLOUD_API = location.hostname === 'localhost' ? '' : 'https://api.flakemonster.com';
+
+    let currentUser = null;
+    let dashboardData = null;
+    let freshSignIn = false;
+
+    // ── Helpers ──
+
+    const ALL_STATES = ['dash-loading', 'dash-signed-out', 'dash-no-sub', 'dash-pro'];
+    const INNER_STATES = ['dash-empty', 'dash-runs', 'dash-run-detail'];
+
+    function hideAll() {
+      ALL_STATES.concat(INNER_STATES).forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = 'none';
+      });
+    }
+
+    function show(id) {
+      const el = document.getElementById(id);
+      if (el) el.style.display = '';
+    }
+
+    function escapeHTML(text) {
+      return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    // ── Auth state ──
+
+    onAuthStateChanged(auth, async (user) => {
+      currentUser = user;
+      hideAll();
+
+      if (!user) {
+        show('dash-signed-out');
+        return;
+      }
+
+      // Fetch dashboard data
+      show('dash-loading');
+      try {
+        const token = await user.getIdToken();
+        const res = await fetch(`${CLOUD_API}/api/get-runs`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+          body: JSON.stringify({ limit: 20 }),
+        });
+
+        if (res.status === 404) {
+          hideAll();
+          document.getElementById('nosub-email').textContent = user.email;
+          show('dash-no-sub');
+          return;
+        }
+
+        if (!res.ok) throw new Error('Failed to load account');
+
+        dashboardData = await res.json();
+
+        if (dashboardData.plan !== 'pro') {
+          hideAll();
+          document.getElementById('nosub-email').textContent = user.email;
+          show('dash-no-sub');
+          return;
+        }
+
+        hideAll();
+        renderDashboard(dashboardData, user);
+        show('dash-pro');
+
+        // On fresh sign-in, redirect straight to Stripe billing portal
+        if (freshSignIn) {
+          freshSignIn = false;
+          try {
+            const billingBtn = document.getElementById('billing-btn');
+            billingBtn.disabled = true;
+            billingBtn.textContent = 'Redirecting to billing portal...';
+            const portalRes = await fetch(`${CLOUD_API}/api/billing-portal`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`,
+              },
+            });
+            const portalData = await portalRes.json();
+            if (portalRes.ok && portalData.url) {
+              window.location.href = portalData.url;
+              return;
+            }
+          } catch (_) {
+            // Billing redirect failed — just show the account page
+          }
+        }
+      } catch (err) {
+        hideAll();
+        show('dash-signed-out');
+        const errEl = document.getElementById('auth-error');
+        errEl.textContent = 'Failed to load account. Please try again.';
+        errEl.style.display = 'block';
+      }
+    });
+
+    // ── Render dashboard ──
+
+    function renderDashboard(data, user) {
+      document.getElementById('pro-email').textContent = user.email;
+
+      const repoFullName = `${data.repo.owner}/${data.repo.name}`;
+      document.getElementById('delete-repo-name').textContent = repoFullName;
+      document.getElementById('confirm-repo-name').textContent = repoFullName;
+
+      // Stats
+      const runs = data.runs || [];
+      document.getElementById('stat-total-runs').textContent = data.usage?.checksUsed ?? runs.length;
+
+      let totalFlaky = 0;
+      let totalTests = 0;
+      for (const run of runs) {
+        totalFlaky += run.analysis?.flakyTests?.length || 0;
+        totalTests += run.analysis?.totalTests || 0;
+      }
+      document.getElementById('stat-flaky-found').textContent = totalFlaky;
+      document.getElementById('stat-total-tests').textContent = totalTests;
+
+      // Show runs or empty state
+      if (runs.length === 0) {
+        show('dash-empty');
+      } else {
+        renderRunList(runs);
+        show('dash-runs');
+      }
+    }
+
+    function renderRunList(runs) {
+      const list = document.getElementById('run-list');
+      list.innerHTML = '';
+
+      for (const run of runs) {
+        const row = document.createElement('div');
+        row.className = 'dash-run-row';
+
+        const flakyCount = run.analysis?.flakyTests?.length || 0;
+        const totalTests = run.analysis?.totalTests || 0;
+        const date = run.createdAt ? new Date(run.createdAt).toLocaleDateString() : '';
+        const prLabel = run.prNumber ? `PR #${run.prNumber}` : (run.branch || 'Run');
+
+        row.innerHTML = `
+          <div class="dash-run-info">
+            <strong>${escapeHTML(prLabel)}</strong>
+            <span>${escapeHTML(date)}</span>
+          </div>
+          <div class="dash-run-result">
+            ${flakyCount > 0
+              ? `<span class="dash-badge dash-badge-flaky">${flakyCount} flaky</span>`
+              : `<span class="dash-badge dash-badge-stable">${totalTests} stable</span>`
+            }
+          </div>
+        `;
+
+        row.addEventListener('click', () => showRunDetail(run));
+        list.appendChild(row);
+      }
+    }
+
+    function showRunDetail(run) {
+      document.getElementById('dash-runs').style.display = 'none';
+      document.getElementById('dash-stats').style.display = 'none';
+      const detail = document.getElementById('dash-run-detail');
+      detail.style.display = '';
+
+      const content = document.getElementById('run-detail-content');
+      const analysis = run.analysis || {};
+      const seeds = run.runs || [];
+
+      let html = `<h3>${run.prNumber ? `PR #${escapeHTML(String(run.prNumber))}` : 'Run'}</h3>`;
+
+      if (run.prUrl) {
+        html += `<p><a href="${escapeHTML(run.prUrl)}" target="_blank" rel="noopener">View on GitHub</a></p>`;
+      }
+
+      html += `<p>Base seed: <code>${escapeHTML(run.baseSeed || '—')}</code></p>`;
+      html += `<p>${analysis.totalTests || 0} tests across ${seeds.length} seeds</p>`;
+
+      // Flaky tests
+      if (analysis.flakyTests?.length) {
+        html += '<h4>Flaky Tests</h4><ul>';
+        for (const t of analysis.flakyTests) {
+          html += `<li><code>${escapeHTML(t.name)}</code>`;
+          if (t.file) html += ` <span style="color:var(--text-muted)">${escapeHTML(t.file)}</span>`;
+          html += '</li>';
+        }
+        html += '</ul>';
+      }
+
+      // Always-failing tests
+      if (analysis.alwaysFailingTests?.length) {
+        html += '<h4>Broken Tests</h4><ul>';
+        for (const t of analysis.alwaysFailingTests) {
+          html += `<li><code>${escapeHTML(t.name)}</code>`;
+          if (t.file) html += ` <span style="color:var(--text-muted)">${escapeHTML(t.file)}</span>`;
+          html += '</li>';
+        }
+        html += '</ul>';
+      }
+
+      // Seed results table
+      if (seeds.length > 0) {
+        html += '<h4>Seeds</h4>';
+        html += '<table class="dash-run-table"><tr><th>Seed</th><th>Exit</th><th>Duration</th><th>Passed</th><th>Failed</th></tr>';
+        for (const r of seeds) {
+          const duration = r.durationMs != null
+            ? (r.durationMs < 1000 ? `${r.durationMs}ms` : `${(r.durationMs / 1000).toFixed(1)}s`)
+            : '—';
+          html += `<tr>`;
+          html += `<td><code>${escapeHTML(String(r.seed))}</code></td>`;
+          html += `<td>${r.exitCode === 0 ? 'OK' : 'Fail'}</td>`;
+          html += `<td>${duration}</td>`;
+          html += `<td>${r.totalPassed ?? '—'}</td>`;
+          html += `<td>${r.totalFailed ?? '—'}</td>`;
+          html += `</tr>`;
+        }
+        html += '</table>';
+      }
+
+      content.innerHTML = html;
+    }
+
+    // ── Sign-In ──
+
+    document.getElementById('google-signin-btn').addEventListener('click', async () => {
+      const errEl = document.getElementById('auth-error');
+      errEl.style.display = 'none';
+      try {
+        freshSignIn = true;
+        await signInWithPopup(auth, provider);
+      } catch (err) {
+        if (err.code !== 'auth/popup-closed-by-user') {
+          errEl.textContent = err.message;
+          errEl.style.display = 'block';
+        }
+      }
+    });
+
+    // ── Sign-Out ──
+
+    document.getElementById('signout-btn').addEventListener('click', () => signOut(auth));
+    document.getElementById('nosub-signout-btn').addEventListener('click', () => signOut(auth));
+
+    // ── Back to runs ──
+
+    document.getElementById('back-to-runs').addEventListener('click', () => {
+      document.getElementById('dash-run-detail').style.display = 'none';
+      document.getElementById('dash-stats').style.display = '';
+      document.getElementById('dash-runs').style.display = '';
+    });
+
+    // ── Billing Portal ──
+
+    document.getElementById('billing-btn').addEventListener('click', async () => {
+      const btn = document.getElementById('billing-btn');
+      const errEl = document.getElementById('billing-error');
+      errEl.style.display = 'none';
+      btn.disabled = true;
+      btn.textContent = 'Opening...';
+
+      try {
+        const token = await currentUser.getIdToken();
+        const res = await fetch(`${CLOUD_API}/api/billing-portal`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to open billing portal');
+        window.open(data.url, '_blank');
+      } catch (err) {
+        errEl.textContent = err.message;
+        errEl.style.display = 'block';
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Open Billing Portal';
+      }
+    });
+
+    // ── Delete Account (Pro) ──
+
+    const deleteBtn = document.getElementById('delete-btn');
+    const confirmDiv = document.getElementById('delete-confirm');
+    const confirmInput = document.getElementById('confirm-input');
+    const confirmBtn = document.getElementById('confirm-delete-btn');
+
+    deleteBtn.addEventListener('click', () => {
+      confirmDiv.classList.toggle('active');
+    });
+
+    confirmInput.addEventListener('input', () => {
+      const repoFullName = dashboardData
+        ? `${dashboardData.repo.owner}/${dashboardData.repo.name}`
+        : '';
+      confirmBtn.disabled = confirmInput.value !== repoFullName;
+    });
+
+    confirmBtn.addEventListener('click', async () => {
+      const repoFullName = dashboardData
+        ? `${dashboardData.repo.owner}/${dashboardData.repo.name}`
+        : '';
+      if (confirmInput.value !== repoFullName) return;
+
+      const errEl = document.getElementById('delete-error');
+      errEl.style.display = 'none';
+      confirmBtn.disabled = true;
+      confirmBtn.textContent = 'Deleting...';
+
+      try {
+        const token = await currentUser.getIdToken();
+        const res = await fetch(`${CLOUD_API}/api/delete-account`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to delete account');
+
+        await signOut(auth);
+        window.location.href = 'index.html';
+      } catch (err) {
+        errEl.textContent = err.message;
+        errEl.style.display = 'block';
+        confirmBtn.disabled = false;
+        confirmBtn.textContent = 'Confirm Deletion';
+      }
+    });
+
+    // ── Delete Account (No sub) ──
+
+    const nosubDeleteBtn = document.getElementById('nosub-delete-btn');
+    const nosubConfirmDiv = document.getElementById('nosub-delete-confirm');
+    const nosubConfirmInput = document.getElementById('nosub-confirm-input');
+    const nosubConfirmBtn = document.getElementById('nosub-confirm-delete-btn');
+
+    nosubDeleteBtn.addEventListener('click', () => {
+      nosubConfirmDiv.classList.toggle('active');
+    });
+
+    nosubConfirmInput.addEventListener('input', () => {
+      nosubConfirmBtn.disabled = nosubConfirmInput.value !== 'DELETE';
+    });
+
+    nosubConfirmBtn.addEventListener('click', async () => {
+      if (nosubConfirmInput.value !== 'DELETE') return;
+
+      const errEl = document.getElementById('nosub-delete-error');
+      errEl.style.display = 'none';
+      nosubConfirmBtn.disabled = true;
+      nosubConfirmBtn.textContent = 'Deleting...';
+
+      try {
+        const token = await currentUser.getIdToken();
+        const res = await fetch(`${CLOUD_API}/api/delete-account`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to delete account');
+
+        await signOut(auth);
+        window.location.href = 'index.html';
+      } catch (err) {
+        errEl.textContent = err.message;
+        errEl.style.display = 'block';
+        nosubConfirmBtn.disabled = false;
+        nosubConfirmBtn.textContent = 'Confirm Deletion';
+      }
+    });
+  </script>
+
+</body>
+</html>

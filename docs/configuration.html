@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Configuration — FlakeMonster Docs</title>
+  <link rel="icon" type="image/svg+xml" href="../website/logo.svg">
+  <link rel="stylesheet" href="../website/styles.css">
+  <link rel="stylesheet" href="docs.css">
+  <script>
+    (function() {
+      var t = localStorage.getItem('theme');
+      if (!t) t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-theme', t);
+    })();
+  </script>
+</head>
+<body class="docs-page">
+
+  <main id="doc-content">
+    <h1>Configuration</h1>
+    <p class="doc-lead">Customize FlakeMonster's behavior with a project-level config file. All settings are optional and have sensible defaults.</p>
+
+    <h2 id="locations">Config File Locations</h2>
+    <p>FlakeMonster searches for a configuration file in your project root directory. Two file names are supported:</p>
+    <ul>
+      <li><code>.flakemonsterrc.json</code> — hidden dotfile style (recommended)</li>
+      <li><code>flakemonster.config.json</code> — explicit config file style</li>
+    </ul>
+    <p>If both files exist, <code>.flakemonsterrc.json</code> takes precedence. Configuration is entirely optional — when no config file is found, FlakeMonster uses built-in defaults for every value.</p>
+    <blockquote>
+      <p><strong>Tip:</strong> Start without a config file. Add one only when you need to customize behavior for your specific project.</p>
+    </blockquote>
+    <p>FlakeMonster resolves the config file from the current working directory. If you run the CLI from a subdirectory, it will <strong>not</strong> walk up parent directories to find a config file. Always run FlakeMonster from your project root, or pass settings via CLI flags.</p>
+
+    <h2 id="schema">Schema</h2>
+    <p>The config file is a JSON object. Every field is optional. Here is the full schema:</p>
+
+    <h3>File Selection</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Field</th>
+          <th>Type</th>
+          <th>Default</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>include</code></td>
+          <td><code>string[]</code></td>
+          <td><code>["src/**/*.js"]</code></td>
+          <td>Glob patterns for files to inject delays into. Paths are relative to the project root.</td>
+        </tr>
+        <tr>
+          <td><code>exclude</code></td>
+          <td><code>string[]</code></td>
+          <td><code>["**/node_modules/**", "**/dist/**", "**/build/**"]</code></td>
+          <td>Glob patterns for files to skip. Matched files are excluded even if they match an <code>include</code> pattern.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>Injection Settings</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Field</th>
+          <th>Type</th>
+          <th>Default</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>mode</code></td>
+          <td><code>string</code></td>
+          <td><code>"medium"</code></td>
+          <td>Injection density. Controls how many async call sites receive delays. One of: <code>"light"</code>, <code>"medium"</code>, <code>"hardcore"</code>.</td>
+        </tr>
+        <tr>
+          <td><code>minDelayMs</code></td>
+          <td><code>number</code></td>
+          <td><code>0</code></td>
+          <td>Minimum delay in milliseconds. The lowest value a generated delay can have.</td>
+        </tr>
+        <tr>
+          <td><code>maxDelayMs</code></td>
+          <td><code>number</code></td>
+          <td><code>50</code></td>
+          <td>Maximum delay in milliseconds. The highest value a generated delay can have.</td>
+        </tr>
+        <tr>
+          <td><code>distribution</code></td>
+          <td><code>string</code></td>
+          <td><code>"uniform"</code></td>
+          <td>Delay distribution algorithm. Controls how delay values are spread between <code>minDelayMs</code> and <code>maxDelayMs</code>.</td>
+        </tr>
+        <tr>
+          <td><code>skipTryCatch</code></td>
+          <td><code>boolean</code></td>
+          <td><code>false</code></td>
+          <td>Reserved for a future release. When implemented, will skip injection inside <code>try/catch</code> blocks. Does not currently affect injection behavior.</td>
+        </tr>
+        <tr>
+          <td><code>skipGenerators</code></td>
+          <td><code>boolean</code></td>
+          <td><code>true</code></td>
+          <td>When <code>true</code>, skips injection inside async generator functions. Enabled by default because injected delays between yields can cause unexpected iterator behavior or deadlocks in consumer code.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>Test Runner Settings</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Field</th>
+          <th>Type</th>
+          <th>Default</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>testCommand</code></td>
+          <td><code>string</code></td>
+          <td><code>"npm test"</code></td>
+          <td>The shell command to run your test suite. Equivalent to <code>--cmd</code> on the CLI.</td>
+        </tr>
+        <tr>
+          <td><code>runs</code></td>
+          <td><code>number</code></td>
+          <td><code>10</code></td>
+          <td>Number of times to run the test command, each with a different seed.</td>
+        </tr>
+        <tr>
+          <td><code>keepOnFail</code></td>
+          <td><code>boolean</code></td>
+          <td><code>true</code></td>
+          <td>When <code>true</code>, keeps the workspace directory intact after a failure so you can inspect the injected code.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2 id="cli-overrides">CLI Override Rules</h2>
+    <p>FlakeMonster resolves configuration in three layers, from lowest to highest priority:</p>
+    <ol>
+      <li><strong>Built-in defaults</strong> — hardcoded values shown in the schema tables above</li>
+      <li><strong>Config file</strong> — values from <code>.flakemonsterrc.json</code> or <code>flakemonster.config.json</code></li>
+      <li><strong>CLI flags</strong> — flags passed directly on the command line</li>
+    </ol>
+    <p>Each layer overrides the one below it. This means CLI flags always win.</p>
+
+    <h3>Merge Behavior</h3>
+    <p>Most fields use simple replacement: the higher-priority value replaces the lower one entirely. However, <code>--exclude</code> has special behavior:</p>
+    <blockquote class="warn">
+      <p><strong>Important:</strong> The <code>--exclude</code> CLI flag <strong>appends</strong> to the config file's <code>exclude</code> array rather than replacing it. This ensures the default exclusions (<code>node_modules</code>, <code>dist</code>, <code>build</code>) are never accidentally removed.</p>
+    </blockquote>
+
+    <h4>Example: Merge in action</h4>
+    <p>Given this config file:</p>
+    <pre><span class="syn-pun">{</span>
+  <span class="syn-kw">"exclude"</span><span class="syn-pun">:</span> <span class="syn-pun">[</span><span class="syn-str">"**/node_modules/**"</span><span class="syn-pun">,</span> <span class="syn-str">"**/dist/**"</span><span class="syn-pun">,</span> <span class="syn-str">"**/build/**"</span><span class="syn-pun">],</span>
+  <span class="syn-kw">"mode"</span><span class="syn-pun">:</span> <span class="syn-str">"light"</span><span class="syn-pun">,</span>
+  <span class="syn-kw">"runs"</span><span class="syn-pun">:</span> <span class="syn-num">5</span>
+<span class="syn-pun">}</span></pre>
+
+    <p>And this CLI invocation:</p>
+    <pre><span class="syn-pun">$</span> npx flake-monster test --mode <span class="syn-str">"hardcore"</span> --exclude <span class="syn-str">"**/vendor/**"</span> --cmd <span class="syn-str">"npm test"</span></pre>
+
+    <p>The resolved configuration is:</p>
+    <table>
+      <thead>
+        <tr>
+          <th>Field</th>
+          <th>Resolved Value</th>
+          <th>Source</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>mode</code></td>
+          <td><code>"hardcore"</code></td>
+          <td>CLI flag overrides config</td>
+        </tr>
+        <tr>
+          <td><code>runs</code></td>
+          <td><code>5</code></td>
+          <td>Config file (no CLI override)</td>
+        </tr>
+        <tr>
+          <td><code>exclude</code></td>
+          <td><code>["**/node_modules/**", "**/dist/**", "**/build/**", "**/vendor/**"]</code></td>
+          <td>Config + CLI appended</td>
+        </tr>
+        <tr>
+          <td><code>testCommand</code></td>
+          <td><code>"npm test"</code></td>
+          <td>CLI flag (<code>--cmd</code>)</td>
+        </tr>
+        <tr>
+          <td><code>minDelayMs</code></td>
+          <td><code>0</code></td>
+          <td>Built-in default</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2 id="examples">Examples</h2>
+
+    <h3>Minimal Config</h3>
+    <p>Most projects only need to customize the include pattern and test command. Let defaults handle the rest:</p>
+    <pre><span class="syn-cmt">// .flakemonsterrc.json</span>
+<span class="syn-pun">{</span>
+  <span class="syn-kw">"include"</span><span class="syn-pun">:</span> <span class="syn-pun">[</span><span class="syn-str">"src/**/*.js"</span><span class="syn-pun">],</span>
+  <span class="syn-kw">"testCommand"</span><span class="syn-pun">:</span> <span class="syn-str">"npm test"</span>
+<span class="syn-pun">}</span></pre>
+
+    <h3>Full Config</h3>
+    <p>Every available option specified explicitly:</p>
+    <pre><span class="syn-cmt">// .flakemonsterrc.json</span>
+<span class="syn-pun">{</span>
+  <span class="syn-kw">"include"</span><span class="syn-pun">:</span> <span class="syn-pun">[</span><span class="syn-str">"src/**/*.js"</span><span class="syn-pun">,</span> <span class="syn-str">"lib/**/*.js"</span><span class="syn-pun">],</span>
+  <span class="syn-kw">"exclude"</span><span class="syn-pun">:</span> <span class="syn-pun">[</span><span class="syn-str">"**/node_modules/**"</span><span class="syn-pun">,</span> <span class="syn-str">"**/dist/**"</span><span class="syn-pun">,</span> <span class="syn-str">"**/build/**"</span><span class="syn-pun">,</span> <span class="syn-str">"**/fixtures/**"</span><span class="syn-pun">],</span>
+  <span class="syn-kw">"mode"</span><span class="syn-pun">:</span> <span class="syn-str">"medium"</span><span class="syn-pun">,</span>
+  <span class="syn-kw">"minDelayMs"</span><span class="syn-pun">:</span> <span class="syn-num">0</span><span class="syn-pun">,</span>
+  <span class="syn-kw">"maxDelayMs"</span><span class="syn-pun">:</span> <span class="syn-num">50</span><span class="syn-pun">,</span>
+  <span class="syn-kw">"distribution"</span><span class="syn-pun">:</span> <span class="syn-str">"uniform"</span><span class="syn-pun">,</span>
+  <span class="syn-kw">"testCommand"</span><span class="syn-pun">:</span> <span class="syn-str">"npm test"</span><span class="syn-pun">,</span>
+  <span class="syn-kw">"runs"</span><span class="syn-pun">:</span> <span class="syn-num">10</span><span class="syn-pun">,</span>
+  <span class="syn-kw">"keepOnFail"</span><span class="syn-pun">:</span> <span class="syn-num">true</span><span class="syn-pun">,</span>
+  <span class="syn-kw">"skipTryCatch"</span><span class="syn-pun">:</span> <span class="syn-num">false</span><span class="syn-pun">,</span>
+  <span class="syn-kw">"skipGenerators"</span><span class="syn-pun">:</span> <span class="syn-num">true</span>
+<span class="syn-pun">}</span></pre>
+
+    <h3>Playwright Project</h3>
+    <p>End-to-end test suites with Playwright benefit from higher delays and more aggressive injection to surface timing-dependent failures:</p>
+    <pre><span class="syn-cmt">// .flakemonsterrc.json</span>
+<span class="syn-pun">{</span>
+  <span class="syn-kw">"include"</span><span class="syn-pun">:</span> <span class="syn-pun">[</span><span class="syn-str">"src/**/*.ts"</span><span class="syn-pun">,</span> <span class="syn-str">"src/**/*.js"</span><span class="syn-pun">],</span>
+  <span class="syn-kw">"exclude"</span><span class="syn-pun">:</span> <span class="syn-pun">[</span>
+    <span class="syn-str">"**/node_modules/**"</span><span class="syn-pun">,</span>
+    <span class="syn-str">"**/dist/**"</span><span class="syn-pun">,</span>
+    <span class="syn-str">"**/build/**"</span><span class="syn-pun">,</span>
+    <span class="syn-str">"**/playwright-report/**"</span><span class="syn-pun">,</span>
+    <span class="syn-str">"**/test-results/**"</span>
+  <span class="syn-pun">],</span>
+  <span class="syn-kw">"mode"</span><span class="syn-pun">:</span> <span class="syn-str">"hardcore"</span><span class="syn-pun">,</span>
+  <span class="syn-kw">"minDelayMs"</span><span class="syn-pun">:</span> <span class="syn-num">5</span><span class="syn-pun">,</span>
+  <span class="syn-kw">"maxDelayMs"</span><span class="syn-pun">:</span> <span class="syn-num">200</span><span class="syn-pun">,</span>
+  <span class="syn-kw">"testCommand"</span><span class="syn-pun">:</span> <span class="syn-str">"npx playwright test"</span><span class="syn-pun">,</span>
+  <span class="syn-kw">"runs"</span><span class="syn-pun">:</span> <span class="syn-num">20</span><span class="syn-pun">,</span>
+  <span class="syn-kw">"keepOnFail"</span><span class="syn-pun">:</span> <span class="syn-num">true</span><span class="syn-pun">,</span>
+  <span class="syn-kw">"skipTryCatch"</span><span class="syn-pun">:</span> <span class="syn-num">true</span>
+<span class="syn-pun">}</span></pre>
+    <p>The higher <code>maxDelayMs</code> of 200ms exaggerates timing differences that browser-based tests are sensitive to. Setting <code>skipTryCatch</code> to <code>true</code> avoids interfering with Playwright's built-in retry and timeout error handling. Running 20 iterations increases the chance of catching intermittent failures.</p>
+
+    <h3>Monorepo</h3>
+    <p>In a monorepo, place the config file in each package that should be fuzzed independently, or use a single config at the repo root with broader include patterns:</p>
+    <pre><span class="syn-cmt">// .flakemonsterrc.json (repo root)</span>
+<span class="syn-pun">{</span>
+  <span class="syn-kw">"include"</span><span class="syn-pun">:</span> <span class="syn-pun">[</span>
+    <span class="syn-str">"packages/api/src/**/*.js"</span><span class="syn-pun">,</span>
+    <span class="syn-str">"packages/web/src/**/*.js"</span><span class="syn-pun">,</span>
+    <span class="syn-str">"packages/shared/src/**/*.js"</span>
+  <span class="syn-pun">],</span>
+  <span class="syn-kw">"exclude"</span><span class="syn-pun">:</span> <span class="syn-pun">[</span>
+    <span class="syn-str">"**/node_modules/**"</span><span class="syn-pun">,</span>
+    <span class="syn-str">"**/dist/**"</span><span class="syn-pun">,</span>
+    <span class="syn-str">"**/build/**"</span><span class="syn-pun">,</span>
+    <span class="syn-str">"**/__mocks__/**"</span>
+  <span class="syn-pun">],</span>
+  <span class="syn-kw">"mode"</span><span class="syn-pun">:</span> <span class="syn-str">"light"</span><span class="syn-pun">,</span>
+  <span class="syn-kw">"testCommand"</span><span class="syn-pun">:</span> <span class="syn-str">"npm run test:all"</span><span class="syn-pun">,</span>
+  <span class="syn-kw">"runs"</span><span class="syn-pun">:</span> <span class="syn-num">5</span>
+<span class="syn-pun">}</span></pre>
+    <p>Using <code>"light"</code> mode in a monorepo keeps total injection time manageable across many packages. You can override with <code>--mode medium</code> on the CLI when investigating a specific flaky test. To fuzz a single package, narrow the scope with CLI flags:</p>
+    <pre><span class="syn-pun">$</span> npx flake-monster test --include <span class="syn-str">"packages/api/src/**/*.js"</span> --cmd <span class="syn-str">"npm run test -w packages/api"</span></pre>
+
+    <div class="doc-nav-links">
+      <a href="cli-reference.html" class="doc-nav-link prev">
+        <span class="doc-nav-link-label">Previous</span>
+        <span class="doc-nav-link-title">CLI Reference</span>
+      </a>
+      <a href="injection-modes.html" class="doc-nav-link next">
+        <span class="doc-nav-link-label">Next</span>
+        <span class="doc-nav-link-title">Injection Modes</span>
+      </a>
+    </div>
+  </main>
+
+  <script type="module" src="components/layout.js"></script>
+</body>
+</html>

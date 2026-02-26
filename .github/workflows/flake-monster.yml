@@ -1,0 +1,16 @@
+name: Flake Check
+on: [pull_request]
+
+jobs:
+  flake-monster:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+      - run: npm ci
+      - uses: flake-monster/action@v1
+        with:
+          test-command: npm test

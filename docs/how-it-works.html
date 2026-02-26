@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>How It Works — FlakeMonster Docs</title>
+  <link rel="icon" type="image/svg+xml" href="../website/logo.svg">
+  <link rel="stylesheet" href="../website/styles.css">
+  <link rel="stylesheet" href="docs.css">
+  <script>
+    (function() {
+      var t = localStorage.getItem('theme');
+      if (!t) t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-theme', t);
+    })();
+  </script>
+</head>
+<body class="docs-page">
+  <main id="doc-content">
+    <h1>How It Works</h1>
+    <p class="doc-lead">FlakeMonster uses a source-to-source transformation approach &mdash; parsing your code into an AST, injecting delay nodes, then generating modified source. No runtime hooks, no monkey-patching.</p>
+
+    <h2 id="architecture">Architecture Overview</h2>
+    <p>FlakeMonster is built around a strict separation between language-agnostic orchestration and language-specific code manipulation. The codebase is divided into three layers:</p>
+    <ul>
+      <li><strong>Core</strong> (<code>src/core/</code>) &mdash; The engine, workspace manager, manifest tracker, profile system, seed derivation, reporter, config loader, and test output parsers. The core is entirely language-agnostic. It orchestrates the injection/restore/test lifecycle but never touches an AST directly.</li>
+      <li><strong>Adapters</strong> (<code>src/adapters/</code>) &mdash; Language-specific implementations that handle all parsing, AST walking, node injection, and code generation. Each adapter conforms to a shared contract so the core can drive any language through the same interface.</li>
+      <li><strong>Runtime</strong> (<code>src/runtime/</code>) &mdash; Minimal, self-contained per-language runtime files. These get copied into the target project during injection and provide the delay function that injected code calls at runtime.</li>
+    </ul>
+    <p>Currently JavaScript is the only adapter, but the architecture is explicitly designed for future language support &mdash; TypeScript, Python, Go, and any other language with async primitives can be added by implementing the adapter contract.</p>
+    <p>The key insight is that the core never needs to understand syntax. It asks the adapter "inject delays into this source string" and gets back a modified source string. The engine handles everything else: file discovery, workspace management, manifest tracking, test execution, and result analysis.</p>
+
+    <h2 id="adapter-contract">The Adapter Contract</h2>
+    <p>Each language adapter has two core transformation functions, plus metadata properties and a scan method for recovery:</p>
+    <ul>
+      <li><code>inject(source, options) &rarr; InjectionResult</code> &mdash; Parse the source string, walk the AST, inject delay statements at appropriate locations, and return the modified source along with injection point metadata.</li>
+      <li><code>remove(source) &rarr; RemovalResult</code> &mdash; Strip all injected code from the source string and return the original source. This must handle code that has been reformatted by linters or editors since injection.</li>
+      <li><code>id</code>, <code>displayName</code>, <code>fileExtensions</code> &mdash; Metadata that identifies the adapter and the file types it handles.</li>
+      <li><code>canHandle(filePath)</code> &mdash; Returns whether a given file should be processed by this adapter.</li>
+      <li><code>getRuntimeInfo()</code> &mdash; Returns the runtime source path and filename for this language.</li>
+      <li><code>scan(source)</code> &mdash; Scans source for remaining traces of injected code, used by recovery mode.</li>
+    </ul>
+    <p>The engine calls these methods without knowing anything about the underlying language, AST format, or parser. This is the boundary that makes multi-language support possible: a Python adapter would use a completely different parser and AST representation, but the engine would call it the same way.</p>
+    <p>The <code>InjectionResult</code> contains:</p>
+    <pre>{
+  <span class="syn-str">"source"</span>:        <span class="syn-str">"...modified code..."</span>,  <span class="syn-cmt">// the transformed source string</span>
+  <span class="syn-str">"points"</span>:        [<span class="syn-cmt">/* InjectionPoint[] */</span>], <span class="syn-cmt">// metadata for every injection made</span>
+  <span class="syn-str">"runtimeNeeded"</span>: <span class="syn-kw">true</span>                    <span class="syn-cmt">// whether the runtime import was added</span>
+}</pre>
+    <p>The <code>RemovalResult</code> contains:</p>
+    <pre>{
+  <span class="syn-str">"source"</span>:       <span class="syn-str">"...original code..."</span>,  <span class="syn-cmt">// the restored source string</span>
+  <span class="syn-str">"removedCount"</span>: <span class="syn-num">5</span>                       <span class="syn-cmt">// number of injections stripped</span>
+}</pre>
+
+    <h2 id="ast-pipeline">AST Pipeline</h2>
+    <p>The JavaScript adapter uses a five-stage pipeline to transform source code. Crucially, the injection path uses text-based string splicing rather than AST code generation, which preserves the original formatting exactly:</p>
+    <ol>
+      <li><strong>Acorn</strong> &mdash; Parses JavaScript source into an ESTree-compatible AST. Acorn is a fast, standards-compliant parser that handles modern JavaScript syntax including async/await, top-level await, and ES modules.</li>
+      <li><strong>astravel</strong> &mdash; Attaches comments from the source to their corresponding AST nodes. This is used during parsing to understand the existing comment structure.</li>
+      <li><strong>acorn-walk</strong> &mdash; Walks the AST to find injection targets: async function declarations, async arrow functions, async methods, and top-level module statements.</li>
+      <li><strong>Compute insertions</strong> &mdash; For each target location, the injector computes a text insertion descriptor containing the character offset and the delay text to insert (a marker comment and <code>await __FlakeMonster__(N)</code>). No AST mutation happens at this stage.</li>
+      <li><strong>String-splice</strong> &mdash; The insertion descriptors are applied back-to-front into the original source string, preserving all original formatting, whitespace, and comments exactly as written.</li>
+    </ol>
+    <p>The pipeline in simplified form:</p>
+    <pre><span class="syn-id">Source</span>  <span class="syn-op">&rarr;</span>  <span class="syn-id">Acorn</span>.<span class="syn-id">parse</span>()  <span class="syn-op">&rarr;</span>  <span class="syn-id">acorn-walk</span>.<span class="syn-id">simple</span>()  <span class="syn-op">&rarr;</span>  <span class="syn-id">computeInjections</span>()  <span class="syn-op">&rarr;</span>  <span class="syn-id">applyInsertions</span>()  <span class="syn-op">&rarr;</span>  <span class="syn-id">Modified Source</span></pre>
+
+    <h3>Comment Handling Gotcha</h3>
+    <p>When re-parsing injected code for removal, astravel attaches marker comments to adjacent nodes rather than the removed ones. The remover must perform a full AST walk to strip orphaned marker comments after removing delay statements. This is handled by the <code>stripMarkerComments()</code> function in the remover.</p>
+
+    <h2 id="injected-code">Injected Code Anatomy</h2>
+    <p>Each injection point consists of exactly two lines inserted into the source:</p>
+    <pre><span class="syn-cmt">/* @flake-monster[jt92-se2j!] v1 */</span>
+<span class="syn-kw">await</span> <span class="syn-id">__FlakeMonster__</span>(<span class="syn-num">23</span>);</pre>
+    <p>These two lines have carefully chosen properties:</p>
+    <ul>
+      <li><strong>The comment is the marker stamp</strong> &mdash; the string <code>@flake-monster[jt92-se2j!] v1</code> is a unique, greppable identifier that enables safe removal. The stamp <code>jt92-se2j!</code> is deliberately unusual to avoid false matches in real code. The <code>v1</code> suffix is a version tag for future-proofing the removal logic.</li>
+      <li><strong>The await expression</strong> calls the runtime's delay function with a deterministic millisecond value. The value (<code>23</code> in this example) is computed at injection time from the seed derivation chain &mdash; it is a literal number, not a runtime computation.</li>
+      <li><strong>The <code>__FlakeMonster__</code> identifier</strong> uses double-underscore naming deliberately. This resists lint rules that might strip or rename ordinary variables, ensuring the injected code survives auto-formatting.</li>
+    </ul>
+    <p>At the top of each injected file, the adapter also inserts a runtime import:</p>
+    <pre><span class="syn-kw">import</span> { <span class="syn-id">__FlakeMonster__</span> } <span class="syn-kw">from</span> <span class="syn-str">"./flake-monster.runtime.js"</span>;</pre>
+    <p>The import path is computed relative from each injected file to the project root. For example, a file at <code>src/api.js</code> gets <code>../flake-monster.runtime.js</code>, while a file at <code>src/lib/utils.js</code> gets <code>../../flake-monster.runtime.js</code>.</p>
+    <p>Both constants &mdash; the <code>DELAY_OBJECT</code> identifier (<code>__FlakeMonster__</code>) and the <code>MARKER_PREFIX</code> (<code>@flake-monster[jt92-se2j!] v1</code>) &mdash; are defined in <code>injector.js</code> so they stay in sync across injection and removal.</p>
+
+    <h2 id="runtime">The Runtime</h2>
+    <p>The runtime is a single-line ES module:</p>
+    <pre><span class="syn-kw">export const</span> <span class="syn-id">__FlakeMonster__</span> <span class="syn-op">=</span> (<span class="syn-id">ms</span>) <span class="syn-op">=&gt;</span> <span class="syn-kw">new</span> <span class="syn-id">Promise</span>(<span class="syn-id">r</span> <span class="syn-op">=&gt;</span> <span class="syn-id">setTimeout</span>(<span class="syn-id">r</span>, <span class="syn-id">ms</span>));</pre>
+    <p>This is all there is. No PRNG, no hashing, no configuration. The runtime is a pure delay function &mdash; it takes a millisecond value and returns a Promise that resolves after that many milliseconds.</p>
+    <p>Key properties of the runtime:</p>
+    <ul>
+      <li><strong>Zero dependencies</strong> &mdash; the file has no imports and relies only on <code>setTimeout</code>, which is available in every JavaScript environment.</li>
+      <li><strong>Works in Node.js and browsers</strong> &mdash; <code>setTimeout</code> is a universal API. The runtime works in Node.js, browsers, Deno, Bun, and any other JavaScript environment.</li>
+      <li><strong>Copied, not linked</strong> &mdash; the runtime file is copied to the project root during injection as <code>flake-monster.runtime.js</code>. It does not depend on <code>node_modules</code> or any package resolution. This means injected code works even if FlakeMonster itself is not installed.</li>
+      <li><strong>Deterministic at the source level</strong> &mdash; all randomness (seed derivation, delay computation) happens at injection time. The runtime simply executes the pre-computed delay values embedded in the source.</li>
+    </ul>
+
+    <h2 id="why-source-to-source">Why Source-to-Source?</h2>
+    <p>FlakeMonster chose source-to-source transformation over alternatives like runtime monkey-patching, V8 hooks, or test framework plugins. Three reasons drove this decision:</p>
+
+    <h3>1. Stable Debugging Surface</h3>
+    <p>Injected code is visible in your editor, debugger, and stack traces. When a test fails, you can open the file and see exactly which delay caused the timing shift. There is no hidden runtime magic, no indirection through proxies, and no opaque stack frames from an interception layer. You can set a breakpoint on the injected <code>await</code> line and step through the timing perturbation directly.</p>
+
+    <h3>2. Works in Browsers</h3>
+    <p>Source-to-source output is plain JavaScript. It survives bundling (webpack, Vite, esbuild, Rollup), tree-shaking, and minification. The injected delays execute in the browser exactly as they do in Node.js. This matters for projects that test browser code &mdash; the same FlakeMonster injection works whether your test runner is Node-based or browser-based.</p>
+
+    <h3>3. Language Agnostic</h3>
+    <p>The approach generalizes to any language with async primitives. Each language just needs a parser and a code generator. The core engine does not depend on JavaScript-specific APIs like <code>vm.Module</code>, V8 inspector, or Node.js loader hooks. A Python adapter would parse Python source, inject <code>await asyncio.sleep(N)</code> calls, and regenerate Python source &mdash; the same pattern, different syntax.</p>
+
+    <h2 id="manifest">Manifest</h2>
+    <p>FlakeMonster creates <code>.flake-monster/manifest.json</code> during injection to track the state of all injected files. The manifest serves as the single source of truth for what has been modified:</p>
+    <pre>{
+  <span class="syn-str">"version"</span>: <span class="syn-num">1</span>,
+  <span class="syn-str">"createdAt"</span>: <span class="syn-str">"2026-02-24T16:00:00Z"</span>,
+  <span class="syn-str">"seed"</span>: <span class="syn-num">12345</span>,
+  <span class="syn-str">"mode"</span>: <span class="syn-str">"medium"</span>,
+  <span class="syn-str">"files"</span>: {
+    <span class="syn-str">"src/api.js"</span>: { <span class="syn-str">"injections"</span>: <span class="syn-num">3</span>, <span class="syn-str">"originalHash"</span>: <span class="syn-str">"abc123"</span> },
+    <span class="syn-str">"src/store.js"</span>: { <span class="syn-str">"injections"</span>: <span class="syn-num">2</span>, <span class="syn-str">"originalHash"</span>: <span class="syn-str">"def456"</span> }
+  }
+}</pre>
+    <p>The manifest is used for several purposes:</p>
+    <ul>
+      <li><strong>Tracking which files were injected</strong> &mdash; the <code>files</code> map lists every file that received delays, along with the number of injections and a hash of the original content.</li>
+      <li><strong>Stale injection detection</strong> &mdash; if a file's current hash does not match the <code>originalHash</code> in the manifest, FlakeMonster knows the file has been modified since injection and can warn or refuse to operate on it.</li>
+      <li><strong>Preventing double-injection</strong> &mdash; if a manifest already exists, FlakeMonster will not inject again unless the user explicitly restores first. This prevents cascading delays that would corrupt the source.</li>
+      <li><strong>Restoration</strong> &mdash; the <code>restore</code> command reads the manifest to know which files need to be cleaned up and verifies the restoration was complete.</li>
+    </ul>
+
+    <h2 id="removal">Removal</h2>
+    <p>Removal is text-based, not AST-based. This is a deliberate design choice. After injection, the source files may pass through linters (ESLint, Prettier), editors (auto-format on save), or other tools that reformat the code. An AST-based remover would need to re-parse the potentially reformatted code and match nodes &mdash; a fragile process. Instead, FlakeMonster's remover uses line-by-line text matching on three patterns:</p>
+    <ul>
+      <li><strong>The stamp comment</strong>: lines containing <code>@flake-monster[jt92-se2j!]</code></li>
+      <li><strong>The delay identifier</strong>: lines containing <code>await __FlakeMonster__(</code></li>
+      <li><strong>The runtime import</strong>: lines containing <code>import { __FlakeMonster__ }</code></li>
+    </ul>
+    <p>Any line matching one of these patterns is removed. The stamp comment is the primary driver &mdash; its unusual format (<code>jt92-se2j!</code>) makes false positives effectively impossible in real codebases. The <code>__FlakeMonster__</code> identifier provides a secondary match for cases where the comment was stripped but the delay statement survived.</p>
+    <p>After text-based removal, the remover also handles orphaned marker comments that astravel may have re-attached to adjacent nodes during any intermediate re-parsing. The <code>stripMarkerComments()</code> function performs a full scan to catch these edge cases.</p>
+
+    <h2 id="workspace-vs-inplace">Workspace vs In-Place</h2>
+    <p>FlakeMonster supports two modes for where injection happens, each with distinct tradeoffs:</p>
+
+    <h3>In-Place (default)</h3>
+    <p>In-place mode modifies your source files directly. The injected delays are written into the actual files on disk.</p>
+    <ul>
+      <li><strong>Faster</strong> &mdash; no file copying overhead. Injection and restoration operate on the original files.</li>
+      <li><strong>Better for manual debugging</strong> &mdash; you can open the injected files in your editor, set breakpoints on delay lines, and step through the timing perturbations.</li>
+      <li><strong>Requires restoration</strong> &mdash; files must be restored to their original state after each test run. The <code>test</code> command handles this automatically, but if you use <code>inject</code> manually, you must run <code>restore</code> when done.</li>
+    </ul>
+    <pre><span class="syn-cmt"># In-place: test command handles inject + restore automatically</span>
+<span class="syn-pun">$</span> flake-monster test --cmd <span class="syn-str">"npm test"</span>
+
+<span class="syn-cmt"># In-place: manual workflow</span>
+<span class="syn-pun">$</span> flake-monster inject <span class="syn-str">"src/**/*.js"</span>
+<span class="syn-pun">$</span> npm test
+<span class="syn-pun">$</span> flake-monster restore</pre>
+
+    <h3>Workspace</h3>
+    <p>Workspace mode creates isolated copies of your source files in <code>.flake-monster/workspaces/run-N-seed-M/</code>. The original files are never modified.</p>
+    <ul>
+      <li><strong>Safer</strong> &mdash; original files stay untouched. No risk of corrupted source if the process crashes mid-injection.</li>
+      <li><strong>Isolated per run</strong> &mdash; each test run gets its own workspace directory with its own set of injected files. This allows parallel analysis of different timing profiles.</li>
+      <li><strong>Preservable</strong> &mdash; use <code>--keep-on-fail</code> to preserve the workspace of failing runs. You can inspect the exact injected code that caused the failure after the run completes.</li>
+      <li><strong>More disk space</strong> &mdash; every workspace is a full copy of the matched files. With 10 runs over a large project, this can add up.</li>
+    </ul>
+    <pre><span class="syn-cmt"># Workspace mode with failure preservation</span>
+<span class="syn-pun">$</span> flake-monster test --workspace --keep-on-fail --cmd <span class="syn-str">"npm test"</span></pre>
+
+    <blockquote>
+      <p><strong>Tip:</strong> Use workspace mode in CI environments where a crash during in-place restoration could leave your working tree in a dirty state. Use in-place mode during local development where the speed benefit matters and you have git to recover.</p>
+    </blockquote>
+
+    <h3>Implementation Note</h3>
+    <p>Because <code>.flake-monster/workspaces/</code> lives inside the project directory, Node's <code>fs.cp</code> would throw <code>EINVAL</code> when attempting to copy the project into its own subdirectory &mdash; even with a filter function. FlakeMonster works around this by using a manual recursive copy that explicitly skips the <code>.flake-monster</code> directory.</p>
+
+    <h2 id="analysis">Flakiness Analysis</h2>
+    <p>After all test runs complete, FlakeMonster analyzes the results and classifies each test into one of three categories:</p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Classification</th>
+          <th>Condition</th>
+          <th>Meaning</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Flaky</strong></td>
+          <td>Passes some runs, fails others</td>
+          <td>Timing-sensitive &mdash; likely a race condition, order dependency, or shared mutable state that behaves differently under varied async timing.</td>
+        </tr>
+        <tr>
+          <td><strong>Stable</strong></td>
+          <td>Passes all runs</td>
+          <td>No timing issues detected under the tested delay profiles. The test is resilient to the async perturbations FlakeMonster introduced.</td>
+        </tr>
+        <tr>
+          <td><strong>Always-failing</strong></td>
+          <td>Fails all runs</td>
+          <td>Pre-existing bug, not flakiness. The test fails regardless of timing, which means the failure is deterministic and unrelated to async ordering.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>Flaky Rate</h3>
+    <p>For each flaky test, FlakeMonster computes a <strong>flaky rate</strong>: the number of failed runs divided by the total number of runs. This gives you a quantitative measure of how sensitive the test is to timing variation.</p>
+    <pre><span class="syn-id">flakyRate</span> <span class="syn-op">=</span> <span class="syn-id">failedRuns</span> <span class="syn-op">/</span> <span class="syn-id">totalRuns</span></pre>
+    <p>For example, a test that fails 2 out of 10 runs has a 20% flaky rate. A test that fails 8 out of 10 runs has an 80% flaky rate &mdash; it almost always fails under timing perturbation, suggesting a severe race condition.</p>
+    <p>The flaky rate helps you prioritize fixes. A test with a 5% flaky rate might be tolerable in the short term, while a test with a 60% flaky rate is likely disrupting your CI pipeline regularly and should be fixed immediately.</p>
+
+    <h3>Example Output</h3>
+    <pre>FlakeMonster v0.4.6  seed=<span class="syn-num">12345</span>  mode=medium  runs=<span class="syn-num">10</span>
+
+Run  1/10 PASS (seed=<span class="syn-num">3892047156</span>)
+Run  2/10 PASS (seed=<span class="syn-num">1740283695</span>)
+Run  3/10 <span class="syn-kw">FAIL</span> (seed=<span class="syn-num">948271536</span>)
+Run  4/10 PASS (seed=<span class="syn-num">2618493027</span>)
+Run  5/10 PASS (seed=<span class="syn-num">741928365</span>)
+Run  6/10 <span class="syn-kw">FAIL</span> (seed=<span class="syn-num">3019482756</span>)
+Run  7/10 PASS (seed=<span class="syn-num">1582937461</span>)
+Run  8/10 PASS (seed=<span class="syn-num">2847193025</span>)
+Run  9/10 PASS (seed=<span class="syn-num">4102938475</span>)
+Run 10/10 PASS (seed=<span class="syn-num">938471625</span>)
+
+<span class="syn-cmt">-- Results --</span>
+
+<span class="syn-num">1</span> flaky test detected:
+
+  cart <span class="syn-op">&gt;</span> applies discount code
+    Failed seeds: <span class="syn-num">948271536</span>, <span class="syn-num">3019482756</span>
+    Flaky rate: <span class="syn-num">20</span>%
+
+<span class="syn-num">14</span> stable tests
+<span class="syn-num">0</span> always-failing tests</pre>
+    <p>The failed seeds let you reproduce each specific failure. Pass any of them back as <code>--seed</code> with <code>--runs 1</code> to recreate the exact timing conditions that exposed the bug.</p>
+
+    <div class="doc-nav-links">
+      <a href="agent-skill.html" class="doc-nav-link prev">
+        <span class="doc-nav-link-label">Previous</span>
+        <span class="doc-nav-link-title">Agent Skill</span>
+      </a>
+      <a href="troubleshooting.html" class="doc-nav-link next">
+        <span class="doc-nav-link-label">Next</span>
+        <span class="doc-nav-link-title">Troubleshooting</span>
+      </a>
+    </div>
+  </main>
+  <script type="module" src="components/layout.js"></script>
+</body>
+</html>

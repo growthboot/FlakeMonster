@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Agent Skill — FlakeMonster Docs</title>
+  <link rel="icon" type="image/svg+xml" href="../website/logo.svg">
+  <link rel="stylesheet" href="../website/styles.css">
+  <link rel="stylesheet" href="docs.css">
+  <script>
+    (function() {
+      var t = localStorage.getItem('theme');
+      if (!t) t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-theme', t);
+    })();
+  </script>
+</head>
+<body class="docs-page">
+  <main id="doc-content">
+    <h1>Agent Skill</h1>
+    <p class="doc-lead">FlakeMonster ships as an Agent Skill — a single <code>SKILL.md</code> file that works across Claude Code, Cursor, Codex, Copilot, Windsurf, and Antigravity.</p>
+
+    <h2 id="what-is">What is an Agent Skill?</h2>
+    <p>Agent Skills are instruction files that teach AI coding assistants new capabilities. Instead of requiring the developer to learn commands, flags, and workflows, a skill file contains everything the agent needs to operate the tool on the developer's behalf.</p>
+    <p>FlakeMonster's skill teaches the agent how to inject delays, run tests, analyze results, and report flaky tests — all through a single <code>/flakemonster</code> command. The agent handles the entire workflow: checking for stale state, determining which files to target, building the right command, parsing structured output, and cleaning up afterward.</p>
+    <p>The skill uses the open <a href="https://agentskills.io">Agent Skills standard</a> (<code>agentskills.io</code>), which defines a portable format for teaching capabilities to any compliant AI coding assistant.</p>
+
+    <h2 id="installation">Installation</h2>
+    <p>One command installs the skill for each supported tool. The skill file is fetched directly from the FlakeMonster repository and placed in the tool-specific directory that the agent reads at startup.</p>
+
+    <h3 id="claude-code">Claude Code</h3>
+    <p>Claude Code reads custom slash commands from the <code>.claude/commands/</code> directory:</p>
+    <pre><span class="syn-pun">$</span> mkdir -p .claude/commands <span class="syn-pun">&amp;&amp;</span> \
+  curl -sL https://raw.githubusercontent.com/growthboot/FlakeMonster/refs/heads/main/SKILL.md \
+  -o .claude/commands/flakemonster.md</pre>
+    <p>After installation, type <code>/flakemonster</code> in Claude Code followed by your test command.</p>
+
+    <h3 id="cursor">Cursor</h3>
+    <p>Cursor loads skills from the <code>.cursor/skills/</code> directory:</p>
+    <pre><span class="syn-pun">$</span> mkdir -p .cursor/skills/flakemonster <span class="syn-pun">&amp;&amp;</span> \
+  curl -sL https://raw.githubusercontent.com/growthboot/FlakeMonster/refs/heads/main/SKILL.md \
+  -o .cursor/skills/flakemonster/SKILL.md</pre>
+
+    <h3 id="codex">Codex</h3>
+    <p>Codex reads skills from the <code>.agents/skills/</code> directory:</p>
+    <pre><span class="syn-pun">$</span> mkdir -p .agents/skills/flakemonster <span class="syn-pun">&amp;&amp;</span> \
+  curl -sL https://raw.githubusercontent.com/growthboot/FlakeMonster/refs/heads/main/SKILL.md \
+  -o .agents/skills/flakemonster/SKILL.md</pre>
+
+    <h3 id="copilot">Copilot</h3>
+    <p>Copilot loads skills from the <code>.github/skills/</code> directory:</p>
+    <pre><span class="syn-pun">$</span> mkdir -p .github/skills/flakemonster <span class="syn-pun">&amp;&amp;</span> \
+  curl -sL https://raw.githubusercontent.com/growthboot/FlakeMonster/refs/heads/main/SKILL.md \
+  -o .github/skills/flakemonster/SKILL.md</pre>
+
+    <h3 id="windsurf">Windsurf</h3>
+    <p>Windsurf reads skills from the <code>.windsurf/skills/</code> directory:</p>
+    <pre><span class="syn-pun">$</span> mkdir -p .windsurf/skills/flakemonster <span class="syn-pun">&amp;&amp;</span> \
+  curl -sL https://raw.githubusercontent.com/growthboot/FlakeMonster/refs/heads/main/SKILL.md \
+  -o .windsurf/skills/flakemonster/SKILL.md</pre>
+
+    <h3 id="antigravity">Antigravity</h3>
+    <p>Antigravity loads skills from the <code>.agent/skills/</code> directory:</p>
+    <pre><span class="syn-pun">$</span> mkdir -p .agent/skills/flakemonster <span class="syn-pun">&amp;&amp;</span> \
+  curl -sL https://raw.githubusercontent.com/growthboot/FlakeMonster/refs/heads/main/SKILL.md \
+  -o .agent/skills/flakemonster/SKILL.md</pre>
+
+    <blockquote>
+      <p><strong>Tip:</strong> Commit the skill file to your repository so every developer on the team gets it automatically. It works like any other dotfile config.</p>
+    </blockquote>
+
+    <h2 id="usage">Usage</h2>
+    <p>Once installed, type the <code>/flakemonster</code> command in any supported agent followed by your test command:</p>
+    <pre><span class="syn-cmt"># Run your default test suite</span>
+<span class="syn-pun">$</span> /flakemonster npm test
+
+<span class="syn-cmt"># Run Playwright end-to-end tests</span>
+<span class="syn-pun">$</span> /flakemonster npx playwright test
+
+<span class="syn-cmt"># Run Jest with extra FlakeMonster flags</span>
+<span class="syn-pun">$</span> /flakemonster --runs <span class="syn-num">20</span> --mode hardcore npx jest
+
+<span class="syn-cmt"># Target a specific test file</span>
+<span class="syn-pun">$</span> /flakemonster npx playwright test tests/checkout.spec.ts
+
+<span class="syn-cmt"># Use node:test runner directly</span>
+<span class="syn-pun">$</span> /flakemonster node --test test/unit/*.test.js</pre>
+    <p>The agent separates FlakeMonster flags (<code>--runs</code>, <code>--mode</code>, <code>--seed</code>, etc.) from the test command automatically. Everything that is not a FlakeMonster flag becomes the <code>--cmd</code> argument.</p>
+
+    <h2 id="workflow">What the Skill Does</h2>
+    <p>When you invoke <code>/flakemonster</code>, the skill instructs the agent to execute a complete flake detection workflow. The agent handles every step automatically:</p>
+
+    <h3>Step 1: Validate Installation</h3>
+    <p>The agent checks that <code>flake-monster</code> is available in the project. It looks for the package in <code>devDependencies</code> and tries <code>npx flake-monster --version</code>. If FlakeMonster is not installed, the agent tells you to run:</p>
+    <pre><span class="syn-pun">$</span> npm install --save-dev flake-monster</pre>
+
+    <h3>Step 2: Check for Stale Injections</h3>
+    <p>Before injecting new delays, the agent looks for a leftover <code>.flake-monster/manifest.json</code> from a previous (possibly interrupted) session. If found, it means injected delay code is still present in the source files. The agent runs <code>npx flake-monster restore</code> to clean up before proceeding, and reports the stale session's seed and mode so you have context.</p>
+    <blockquote class="warn">
+      <p><strong>Important:</strong> Running a new injection on top of stale injected code would double-inject delays, corrupt the source, and produce meaningless results. The skill always ensures a clean starting state.</p>
+    </blockquote>
+
+    <h3>Step 3: Determine Source File Globs</h3>
+    <p>The agent figures out which files to target for delay injection using this priority order:</p>
+    <ol>
+      <li><strong>Config file</strong> — reads <code>include</code> patterns from <code>.flakemonsterrc.json</code> or <code>flakemonster.config.json</code></li>
+      <li><strong>Project structure</strong> — scans for <code>src/</code>, <code>lib/</code>, or <code>app/</code> directories and picks matching glob patterns based on the file extensions present</li>
+      <li><strong>Ask the developer</strong> — if the project structure is ambiguous, the agent asks which source files to target</li>
+    </ol>
+
+    <h3>Step 4: Build the FlakeMonster Command</h3>
+    <p>The agent constructs the full CLI command with appropriate flags. It uses <code>--format json</code> for structured output parsing. If a config file exists, the agent defers to config defaults for <code>--runs</code> and <code>--mode</code> unless you explicitly specified values.</p>
+    <p>For Playwright test commands, the agent automatically appends <code>--reporter=json</code> to the test command so FlakeMonster's built-in Playwright parser can process the output.</p>
+    <p>The constructed command looks like:</p>
+    <pre><span class="syn-pun">$</span> npx flake-monster test --format json --runs <span class="syn-num">10</span> --mode <span class="syn-str">medium</span> --cmd <span class="syn-str">"npm test"</span> <span class="syn-str">"src/**/*.js"</span></pre>
+
+    <h3>Step 5: Execute Tests</h3>
+    <p>The agent runs the command with a long timeout (10 minutes) since multiple test iterations can take time. It captures both stdout and stderr for complete analysis.</p>
+
+    <h3>Step 6: Analyze Results</h3>
+    <p>The agent parses the JSON output and reports what it finds:</p>
+    <table>
+      <thead>
+        <tr>
+          <th>Outcome</th>
+          <th>What the Agent Reports</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>All runs passed</strong></td>
+          <td>Tests appear stable under delay injection. No timing sensitivity detected.</td>
+        </tr>
+        <tr>
+          <td><strong>Flaky tests found</strong></td>
+          <td>Each flaky test by name, its failure rate, and which seeds caused failures. Suggests re-running with <code>--seed &lt;N&gt; --runs 1 --keep-on-fail</code> for debugging.</td>
+        </tr>
+        <tr>
+          <td><strong>Tests always fail</strong></td>
+          <td>These are pre-existing bugs, not flakiness. Suggests fixing them first, then re-running.</td>
+        </tr>
+        <tr>
+          <td><strong>Output not parseable</strong></td>
+          <td>Falls back to run-level analysis using exit codes. Reports pass/fail counts without per-test breakdown.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>Step 7: Clean Up</h3>
+    <p>After reporting results, the agent runs <code>npx flake-monster restore</code> to remove all injected delay code from your source files. Your code is returned to its original state, with no traces of FlakeMonster left behind.</p>
+
+    <h2 id="why">Why Agents Need This</h2>
+    <p>AI coding agents do not experience flaky tests. An agent runs a test once, sees it pass, and moves on. But that test might be timing-sensitive — it could fail 10% of the time in CI when async operations resolve in a different order, when the database is under load, or when a network call takes 50ms longer than usual.</p>
+    <p>Without FlakeMonster, this is the typical agent workflow:</p>
+    <ol>
+      <li>Agent writes or modifies code</li>
+      <li>Agent runs the test suite once</li>
+      <li>Tests pass</li>
+      <li>Agent commits the change</li>
+      <li>CI fails intermittently — the flaky test surfaces hours or days later</li>
+    </ol>
+    <p>With FlakeMonster, the agent can stress-test its own code changes before committing:</p>
+    <ol>
+      <li>Agent writes or modifies code</li>
+      <li>Agent runs <code>/flakemonster npm test</code></li>
+      <li>FlakeMonster injects async delays and runs the suite 10 times with different seeds</li>
+      <li>A flaky test is detected — the agent sees exactly which test failed and under which seed</li>
+      <li>Agent fixes the timing-sensitive code</li>
+      <li>Agent commits the stable change</li>
+    </ol>
+    <p>The key insight is that <strong>flaky tests are caused by timing assumptions</strong>, and FlakeMonster deliberately violates those assumptions by injecting deterministic delays. This turns a probabilistic problem (the test fails sometimes) into a deterministic one (the test fails with seed 948271536).</p>
+    <p>The skill file teaches the agent the complete workflow so that a single <code>/flakemonster</code> command is all a developer needs to type. The agent handles installation checks, stale state cleanup, file selection, command construction, result analysis, and source restoration automatically.</p>
+
+    <blockquote>
+      <p><strong>Think of it this way:</strong> FlakeMonster gives your AI coding agent the same superpower a senior engineer has — the instinct to ask "but does this pass <em>reliably</em>?" before calling a change done.</p>
+    </blockquote>
+
+    <div class="doc-nav-links">
+      <a href="github-action.html" class="doc-nav-link prev">
+        <span class="doc-nav-link-label">Previous</span>
+        <span class="doc-nav-link-title">GitHub Action</span>
+      </a>
+      <a href="how-it-works.html" class="doc-nav-link next">
+        <span class="doc-nav-link-label">Next</span>
+        <span class="doc-nav-link-title">How It Works</span>
+      </a>
+    </div>
+  </main>
+  <script type="module" src="components/layout.js"></script>
+</body>
+</html>

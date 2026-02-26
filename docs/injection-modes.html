@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Injection Modes — FlakeMonster Docs</title>
+  <link rel="icon" type="image/svg+xml" href="../website/logo.svg">
+  <link rel="stylesheet" href="../website/styles.css">
+  <link rel="stylesheet" href="docs.css">
+  <script>
+    (function() {
+      var t = localStorage.getItem('theme');
+      if (!t) t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-theme', t);
+    })();
+  </script>
+</head>
+<body class="docs-page">
+  <main id="doc-content">
+    <h1>Injection Modes</h1>
+    <p class="doc-lead">FlakeMonster supports three injection densities — <strong>light</strong>, <strong>medium</strong>, and <strong>hardcore</strong> — that control how many delay statements are injected into your code.</p>
+
+    <h2 id="overview">Overview</h2>
+    <p>Injection modes control the density of <code>await __FlakeMonster__(N)</code> delay statements inserted into your async code. Each injected delay forces a pause of <code>N</code> milliseconds (determined by the seed), giving other async operations a chance to interleave and exposing timing-dependent bugs that hide in fast environments.</p>
+    <p>The tradeoff is straightforward: more delays means more chaos, which means a higher chance of surfacing flaky tests — but it also means slower test runs. FlakeMonster gives you three density levels to balance coverage against speed.</p>
+    <p>Set the mode with the <code>--mode</code> flag or the <code>mode</code> config key:</p>
+    <pre><span class="syn-pun">$</span> npx flake-monster test --mode <span class="syn-str">hardcore</span> --cmd <span class="syn-str">"npm test"</span></pre>
+
+    <h2 id="light">Light Mode</h2>
+    <p>Light mode injects the fewest delays possible while still perturbing async timing:</p>
+    <ul>
+      <li><strong>One delay at the top of each async function body</strong> — before the first statement</li>
+      <li><strong>One delay at the first module-level statement</strong> (if top-level await is in use)</li>
+    </ul>
+    <p>This is the fastest mode. It nudges the timing of every async entry point without slowing down internal logic. Best for quick sanity checks and fast feedback loops during development.</p>
+
+    <h3>Before injection</h3>
+    <pre><span class="syn-kw">async function</span> <span class="syn-id">loadUser</span>(<span class="syn-id">id</span>) {
+  <span class="syn-kw">const</span> <span class="syn-id">user</span> <span class="syn-pun">=</span> <span class="syn-kw">await</span> <span class="syn-id">api</span><span class="syn-pun">.</span><span class="syn-id">getUser</span>(<span class="syn-id">id</span>);
+  <span class="syn-kw">const</span> <span class="syn-id">prefs</span> <span class="syn-pun">=</span> <span class="syn-kw">await</span> <span class="syn-id">api</span><span class="syn-pun">.</span><span class="syn-id">getPrefs</span>(<span class="syn-id">id</span>);
+  <span class="syn-kw">return</span> { <span class="syn-pun">...</span><span class="syn-id">user</span>, <span class="syn-pun">...</span><span class="syn-id">prefs</span> };
+}</pre>
+
+    <h3>After injection (light)</h3>
+    <pre><span class="syn-kw">import</span> { <span class="syn-id">__FlakeMonster__</span> } <span class="syn-kw">from</span> <span class="syn-str">"./flake-monster.runtime.js"</span>;
+
+<span class="syn-kw">async function</span> <span class="syn-id">loadUser</span>(<span class="syn-id">id</span>) {
+  <span class="syn-cmt">/* @flake-monster[jt92-se2j!] v1 */</span>
+  <span class="syn-kw">await</span> <span class="syn-id">__FlakeMonster__</span>(<span class="syn-num">23</span>);
+  <span class="syn-kw">const</span> <span class="syn-id">user</span> <span class="syn-pun">=</span> <span class="syn-kw">await</span> <span class="syn-id">api</span><span class="syn-pun">.</span><span class="syn-id">getUser</span>(<span class="syn-id">id</span>);
+  <span class="syn-kw">const</span> <span class="syn-id">prefs</span> <span class="syn-pun">=</span> <span class="syn-kw">await</span> <span class="syn-id">api</span><span class="syn-pun">.</span><span class="syn-id">getPrefs</span>(<span class="syn-id">id</span>);
+  <span class="syn-kw">return</span> { <span class="syn-pun">...</span><span class="syn-id">user</span>, <span class="syn-pun">...</span><span class="syn-id">prefs</span> };
+}</pre>
+    <p>Only one delay is inserted — at the very top of the function, before the first statement. The <code>return</code> and all other statements are left untouched.</p>
+
+    <h2 id="medium">Medium Mode</h2>
+    <p>Medium mode is the <strong>default</strong>. It injects a delay before every statement in async function bodies and at the module top level, with two exceptions:</p>
+    <ul>
+      <li><strong>Delays between statements</strong> in async functions</li>
+      <li><strong>Delays between module-level statements</strong> (top-level await)</li>
+      <li><strong>Skips <code>return</code> and <code>throw</code> statements</strong> — no delay is inserted before a <code>return</code> or <code>throw</code></li>
+    </ul>
+    <p>This is the sweet spot for most workflows: enough chaos to catch real flakes without making test runs prohibitively slow. Best for standard CI gates and PR flake detection.</p>
+
+    <h3>After injection (medium)</h3>
+    <pre><span class="syn-kw">import</span> { <span class="syn-id">__FlakeMonster__</span> } <span class="syn-kw">from</span> <span class="syn-str">"./flake-monster.runtime.js"</span>;
+
+<span class="syn-kw">async function</span> <span class="syn-id">loadUser</span>(<span class="syn-id">id</span>) {
+  <span class="syn-cmt">/* @flake-monster[jt92-se2j!] v1 */</span>
+  <span class="syn-kw">await</span> <span class="syn-id">__FlakeMonster__</span>(<span class="syn-num">23</span>);
+  <span class="syn-kw">const</span> <span class="syn-id">user</span> <span class="syn-pun">=</span> <span class="syn-kw">await</span> <span class="syn-id">api</span><span class="syn-pun">.</span><span class="syn-id">getUser</span>(<span class="syn-id">id</span>);
+  <span class="syn-cmt">/* @flake-monster[jt92-se2j!] v1 */</span>
+  <span class="syn-kw">await</span> <span class="syn-id">__FlakeMonster__</span>(<span class="syn-num">41</span>);
+  <span class="syn-kw">const</span> <span class="syn-id">prefs</span> <span class="syn-pun">=</span> <span class="syn-kw">await</span> <span class="syn-id">api</span><span class="syn-pun">.</span><span class="syn-id">getPrefs</span>(<span class="syn-id">id</span>);
+  <span class="syn-kw">return</span> { <span class="syn-pun">...</span><span class="syn-id">user</span>, <span class="syn-pun">...</span><span class="syn-id">prefs</span> };
+}</pre>
+    <p>Delays appear before the <code>const user</code> and <code>const prefs</code> statements. No delay is inserted before <code>return</code> because medium mode skips <code>return</code> and <code>throw</code> statements. This ensures the function always completes promptly after its last real operation.</p>
+
+    <h2 id="hardcore">Hardcore Mode</h2>
+    <p>Hardcore mode injects a delay before <strong>every single statement</strong> — no exceptions. Every <code>return</code>, every <code>throw</code>, every assignment gets a delay in front of it.</p>
+    <ul>
+      <li><strong>Delays before every statement</strong> in async functions, including <code>return</code> and <code>throw</code></li>
+      <li><strong>Delays before every module-level statement</strong></li>
+      <li><strong>Maximum chaos, maximum detection surface</strong></li>
+    </ul>
+    <p>This is the most thorough mode. It creates the highest probability of exposing timing-dependent failures. Best for deep debugging, stress testing, and nightly builds where runtime cost is acceptable.</p>
+
+    <h3>After injection (hardcore)</h3>
+    <pre><span class="syn-kw">import</span> { <span class="syn-id">__FlakeMonster__</span> } <span class="syn-kw">from</span> <span class="syn-str">"./flake-monster.runtime.js"</span>;
+
+<span class="syn-kw">async function</span> <span class="syn-id">loadUser</span>(<span class="syn-id">id</span>) {
+  <span class="syn-cmt">/* @flake-monster[jt92-se2j!] v1 */</span>
+  <span class="syn-kw">await</span> <span class="syn-id">__FlakeMonster__</span>(<span class="syn-num">23</span>);
+  <span class="syn-kw">const</span> <span class="syn-id">user</span> <span class="syn-pun">=</span> <span class="syn-kw">await</span> <span class="syn-id">api</span><span class="syn-pun">.</span><span class="syn-id">getUser</span>(<span class="syn-id">id</span>);
+  <span class="syn-cmt">/* @flake-monster[jt92-se2j!] v1 */</span>
+  <span class="syn-kw">await</span> <span class="syn-id">__FlakeMonster__</span>(<span class="syn-num">41</span>);
+  <span class="syn-kw">const</span> <span class="syn-id">prefs</span> <span class="syn-pun">=</span> <span class="syn-kw">await</span> <span class="syn-id">api</span><span class="syn-pun">.</span><span class="syn-id">getPrefs</span>(<span class="syn-id">id</span>);
+  <span class="syn-cmt">/* @flake-monster[jt92-se2j!] v1 */</span>
+  <span class="syn-kw">await</span> <span class="syn-id">__FlakeMonster__</span>(<span class="syn-num">7</span>);
+  <span class="syn-kw">return</span> { <span class="syn-pun">...</span><span class="syn-id">user</span>, <span class="syn-pun">...</span><span class="syn-id">prefs</span> };
+}</pre>
+    <p>Every statement now has a delay in front of it, including the <code>return</code>. This maximizes the chance that interleaved async operations will expose ordering bugs — even ones that depend on how fast a function returns.</p>
+
+    <h2 id="choosing">Choosing a Mode</h2>
+    <p>The right mode depends on where you are in your workflow and how much time you can spend:</p>
+    <table>
+      <thead>
+        <tr>
+          <th>Use Case</th>
+          <th>Recommended Mode</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Quick sanity check</td>
+          <td><code>light</code></td>
+        </tr>
+        <tr>
+          <td>Standard CI gate</td>
+          <td><code>medium</code></td>
+        </tr>
+        <tr>
+          <td>PR flake detection</td>
+          <td><code>medium</code></td>
+        </tr>
+        <tr>
+          <td>Deep debugging</td>
+          <td><code>hardcore</code></td>
+        </tr>
+        <tr>
+          <td>Nightly build</td>
+          <td><code>hardcore</code></td>
+        </tr>
+        <tr>
+          <td>Reproducing a specific failure</td>
+          <td><code>medium</code> or <code>hardcore</code></td>
+        </tr>
+      </tbody>
+    </table>
+    <p><strong>Progressive approach:</strong> Start with <code>light</code> to get fast initial coverage. If no flakes appear, escalate to <code>medium</code>. Reserve <code>hardcore</code> for when you suspect deep timing issues or want maximum confidence before a release.</p>
+    <pre><span class="syn-cmt"># Quick check during development</span>
+<span class="syn-pun">$</span> npx flake-monster test --mode <span class="syn-str">light</span> --runs <span class="syn-num">5</span> --cmd <span class="syn-str">"npm test"</span>
+
+<span class="syn-cmt"># Standard CI gate</span>
+<span class="syn-pun">$</span> npx flake-monster test --mode <span class="syn-str">medium</span> --runs <span class="syn-num">10</span> --cmd <span class="syn-str">"npm test"</span>
+
+<span class="syn-cmt"># Nightly deep scan</span>
+<span class="syn-pun">$</span> npx flake-monster test --mode <span class="syn-str">hardcore</span> --runs <span class="syn-num">25</span> --cmd <span class="syn-str">"npm test"</span></pre>
+
+    <h2 id="controls">Additional Controls</h2>
+    <p>Beyond the mode setting, FlakeMonster provides two flags that fine-tune where delays are injected. These work with any mode.</p>
+
+    <h3><code>skipTryCatch</code></h3>
+    <p>A config-file-only option reserved for a future release. When implemented, setting this to <code>true</code> will prevent FlakeMonster from injecting delays inside <code>try</code>, <code>catch</code>, or <code>finally</code> blocks. This will be useful when injected delays cause timeout exceptions or interfere with error-handling logic that is sensitive to execution timing.</p>
+    <p>Default: <code>false</code>. This option does not currently affect injection behavior.</p>
+    <pre><span class="syn-cmt">// Via config file (flake-monster.config.json)</span>
+{
+  <span class="syn-str">"skipTryCatch"</span>: <span class="syn-kw">true</span>,
+  <span class="syn-str">"mode"</span>: <span class="syn-str">"medium"</span>
+}</pre>
+    <p>Example: with <code>skipTryCatch: true</code>, delays are omitted inside the try block:</p>
+    <pre><span class="syn-kw">async function</span> <span class="syn-id">fetchData</span>() {
+  <span class="syn-cmt">/* @flake-monster[jt92-se2j!] v1 */</span>
+  <span class="syn-kw">await</span> <span class="syn-id">__FlakeMonster__</span>(<span class="syn-num">18</span>);
+  <span class="syn-kw">const</span> <span class="syn-id">url</span> <span class="syn-pun">=</span> <span class="syn-id">buildUrl</span>();
+
+  <span class="syn-kw">try</span> {
+    <span class="syn-cmt">// No delays injected here when skipTryCatch is true</span>
+    <span class="syn-kw">const</span> <span class="syn-id">res</span> <span class="syn-pun">=</span> <span class="syn-kw">await</span> <span class="syn-id">fetch</span>(<span class="syn-id">url</span>);
+    <span class="syn-kw">return</span> <span class="syn-kw">await</span> <span class="syn-id">res</span><span class="syn-pun">.</span><span class="syn-id">json</span>();
+  } <span class="syn-kw">catch</span> (<span class="syn-id">err</span>) {
+    <span class="syn-cmt">// No delays here either</span>
+    <span class="syn-kw">return</span> <span class="syn-kw">null</span>;
+  }
+}</pre>
+
+    <h3><code>skipGenerators</code></h3>
+    <p>When set to <code>true</code> (the default), FlakeMonster skips async generator functions (<code>async function*</code>) entirely. Generator functions yield values incrementally, and injected delays between yields can cause unexpected iterator behavior or deadlocks in consumer code.</p>
+    <p>Default: <code>true</code> (async generators are skipped).</p>
+    <pre><span class="syn-cmt">// To opt in to generator injection, set skipGenerators to false</span>
+{
+  <span class="syn-str">"skipGenerators"</span>: <span class="syn-kw">false</span>,
+  <span class="syn-str">"mode"</span>: <span class="syn-str">"hardcore"</span>
+}</pre>
+    <p>With <code>skipGenerators: true</code> (the default), this function is left completely untouched:</p>
+    <pre><span class="syn-cmt">// Skipped — no delays injected into async generators by default</span>
+<span class="syn-kw">async function*</span> <span class="syn-id">streamEvents</span>(<span class="syn-id">source</span>) {
+  <span class="syn-kw">for await</span> (<span class="syn-kw">const</span> <span class="syn-id">event</span> <span class="syn-kw">of</span> <span class="syn-id">source</span>) {
+    <span class="syn-kw">yield</span> <span class="syn-id">transform</span>(<span class="syn-id">event</span>);
+  }
+}</pre>
+
+    <blockquote>
+      <p><strong>Tip:</strong> If you are specifically hunting for flakes in generator-based streaming code, set <code>skipGenerators: false</code> and use <code>hardcore</code> mode. Be prepared for longer test runs.</p>
+    </blockquote>
+
+    <div class="doc-nav-links">
+      <a href="configuration.html" class="doc-nav-link prev">
+        <span class="doc-nav-link-label">Previous</span>
+        <span class="doc-nav-link-title">Configuration</span>
+      </a>
+      <a href="seed-system.html" class="doc-nav-link next">
+        <span class="doc-nav-link-label">Next</span>
+        <span class="doc-nav-link-title">Seed System</span>
+      </a>
+    </div>
+  </main>
+  <script type="module" src="components/layout.js"></script>
+</body>
+</html>

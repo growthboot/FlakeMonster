@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CLI Reference — FlakeMonster Docs</title>
+  <link rel="icon" type="image/svg+xml" href="../website/logo.svg">
+  <link rel="stylesheet" href="../website/styles.css">
+  <link rel="stylesheet" href="docs.css">
+  <script>
+    (function() {
+      var t = localStorage.getItem('theme');
+      if (!t) t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-theme', t);
+    })();
+  </script>
+</head>
+<body class="docs-page">
+  <main id="doc-content">
+    <h1>CLI Reference</h1>
+    <p class="doc-lead">Complete reference for every FlakeMonster command, flag, and option. All commands are available via <code>npx flake-monster</code> or as a global install.</p>
+
+    <!-- ────────────────────────────────────────── -->
+    <h2 id="test"><code>flake-monster test</code></h2>
+    <p>The primary command. Injects deterministic async delays into your source files, runs your test suite multiple times with different seeds, analyzes the results for flaky tests, then restores your source files to their original state.</p>
+
+    <h3>Usage</h3>
+    <pre><span class="syn-pun">$</span> flake-monster test <span class="syn-cmt">[options]</span> <span class="syn-cmt">[globs...]</span></pre>
+
+    <h3>Options</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Flag</th>
+          <th>Default</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>-r, --runs &lt;n&gt;</code></td>
+          <td><code>10</code></td>
+          <td>Number of test runs to execute. Each run uses a different derived seed so timing varies between iterations.</td>
+        </tr>
+        <tr>
+          <td><code>-m, --mode &lt;mode&gt;</code></td>
+          <td><code>medium</code></td>
+          <td>Injection density. Controls how many async points receive delays. One of: <code>light</code>, <code>medium</code>, <code>hardcore</code>.</td>
+        </tr>
+        <tr>
+          <td><code>-s, --seed &lt;seed&gt;</code></td>
+          <td><code>auto</code></td>
+          <td>Base seed for deterministic delay generation. Use a number for reproducible runs, or <code>auto</code> to generate a random seed. Each run derives its own seed from this base.</td>
+        </tr>
+        <tr>
+          <td><code>-c, --cmd &lt;command&gt;</code></td>
+          <td><code>npm test</code></td>
+          <td>The test command to execute on each run. Can be any shell command: <code>npm test</code>, <code>npx jest</code>, <code>node --test</code>, etc.</td>
+        </tr>
+        <tr>
+          <td><code>--in-place</code></td>
+          <td><code>true</code></td>
+          <td>Modify source files directly (the default). Files are restored after all runs complete, or on error.</td>
+        </tr>
+        <tr>
+          <td><code>--workspace</code></td>
+          <td><code>false</code></td>
+          <td>Use isolated workspace copies instead of modifying source files. Each run gets its own copy of the project under <code>.flake-monster/workspaces/</code>.</td>
+        </tr>
+        <tr>
+          <td><code>--keep-on-fail</code></td>
+          <td><code>false</code></td>
+          <td>Keep the workspace directory when a test run fails (workspace mode only). Useful for inspecting injected code after a failure.</td>
+        </tr>
+        <tr>
+          <td><code>--keep-all</code></td>
+          <td><code>false</code></td>
+          <td>Keep all workspace directories after runs complete, regardless of pass or fail (workspace mode only).</td>
+        </tr>
+        <tr>
+          <td><code>-f, --format &lt;format&gt;</code></td>
+          <td><code>text</code></td>
+          <td>Output format. Use <code>text</code> for human-readable terminal output, or <code>json</code> for machine-readable output suitable for CI pipelines.</td>
+        </tr>
+        <tr>
+          <td><code>--runner &lt;runner&gt;</code></td>
+          <td><code>auto</code></td>
+          <td>Test runner output parser. One of: <code>jest</code>, <code>node-test</code>, <code>playwright</code>, <code>tap</code>, <code>auto</code>. When set to <code>auto</code>, FlakeMonster detects the runner from your test command.</td>
+        </tr>
+        <tr>
+          <td><code>--min-delay &lt;ms&gt;</code></td>
+          <td><code>0</code></td>
+          <td>Minimum injected delay in milliseconds. Delays are computed at injection time and embedded directly in source code.</td>
+        </tr>
+        <tr>
+          <td><code>--max-delay &lt;ms&gt;</code></td>
+          <td><code>50</code></td>
+          <td>Maximum injected delay in milliseconds. Higher values increase the chance of exposing timing-dependent flakes, but slow down test execution.</td>
+        </tr>
+        <tr>
+          <td><code>-e, --exclude &lt;patterns...&gt;</code></td>
+          <td>&mdash;</td>
+          <td>Glob patterns to exclude from injection. Appends to any patterns defined in your config file. Example: <code>--exclude "src/vendor/**"</code>.</td>
+        </tr>
+        <tr>
+          <td><code>[globs...]</code></td>
+          <td><code>src/**/*.js</code></td>
+          <td>File patterns to inject delays into. Passed as positional arguments after all flags.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>Examples</h3>
+
+    <h4>Basic usage with defaults</h4>
+    <pre><span class="syn-pun">$</span> npx flake-monster test <span class="syn-kw">--cmd</span> <span class="syn-str">"npm test"</span></pre>
+    <p>Injects delays into <code>src/**/*.js</code>, runs <code>npm test</code> 10 times in medium mode, then restores.</p>
+
+    <h4>Fast scan with fewer runs</h4>
+    <pre><span class="syn-pun">$</span> npx flake-monster test <span class="syn-kw">--runs</span> <span class="syn-num">3</span> <span class="syn-kw">--cmd</span> <span class="syn-str">"npx jest"</span></pre>
+    <p>Quick 3-run check. Good for a first pass before committing to a longer run.</p>
+
+    <h4>Reproduce a specific failure</h4>
+    <pre><span class="syn-pun">$</span> npx flake-monster test <span class="syn-kw">--runs</span> <span class="syn-num">1</span> <span class="syn-kw">--seed</span> <span class="syn-num">948271536</span> <span class="syn-kw">--cmd</span> <span class="syn-str">"npm test"</span></pre>
+    <p>Replays the exact same delays that caused a failure. The seed is printed in the output of each failing run.</p>
+
+    <h4>Hardcore mode with custom delay range</h4>
+    <pre><span class="syn-pun">$</span> npx flake-monster test <span class="syn-kw">--mode</span> <span class="syn-str">hardcore</span> <span class="syn-kw">--max-delay</span> <span class="syn-num">200</span> <span class="syn-kw">--runs</span> <span class="syn-num">20</span> <span class="syn-kw">--cmd</span> <span class="syn-str">"npm test"</span></pre>
+    <p>Maximum injection density with delays up to 200ms across 20 runs. Thorough but slow.</p>
+
+    <h4>Custom file patterns with exclusions</h4>
+    <pre><span class="syn-pun">$</span> npx flake-monster test <span class="syn-kw">--cmd</span> <span class="syn-str">"npm test"</span> <span class="syn-kw">--exclude</span> <span class="syn-str">"src/generated/**"</span> <span class="syn-str">"src/**/*.js"</span> <span class="syn-str">"lib/**/*.js"</span></pre>
+    <p>Injects into both <code>src/</code> and <code>lib/</code>, skipping generated files.</p>
+
+    <h4>Workspace mode with failure inspection</h4>
+    <pre><span class="syn-pun">$</span> npx flake-monster test <span class="syn-kw">--workspace</span> <span class="syn-kw">--keep-on-fail</span> <span class="syn-kw">--cmd</span> <span class="syn-str">"npm test"</span></pre>
+    <p>Runs each iteration in an isolated copy. When a run fails, the workspace is preserved so you can inspect the injected code.</p>
+
+    <h4>JSON output for CI</h4>
+    <pre><span class="syn-pun">$</span> npx flake-monster test <span class="syn-kw">--format</span> <span class="syn-str">json</span> <span class="syn-kw">--cmd</span> <span class="syn-str">"npm test"</span> <span class="syn-pun">></span> flake-report.json</pre>
+    <p>Writes structured JSON to a file. See <a href="#json-output">JSON Output</a> for the full schema.</p>
+
+    <h4>Using node:test</h4>
+    <pre><span class="syn-pun">$</span> npx flake-monster test <span class="syn-kw">--cmd</span> <span class="syn-str">"node --test test/**/*.test.js"</span> <span class="syn-kw">--runner</span> <span class="syn-str">node-test</span></pre>
+    <p>FlakeMonster automatically appends <code>--test-reporter tap</code> when it detects <code>node --test</code>, since the default spec reporter outputs to stderr.</p>
+
+    <blockquote>
+      <p><strong>Tip:</strong> If a run is interrupted (Ctrl+C, crash, etc.), FlakeMonster detects stale injections on the next run and automatically restores your files before proceeding. You can also run <code>flake-monster restore</code> manually.</p>
+    </blockquote>
+
+    <!-- ────────────────────────────────────────── -->
+    <h2 id="inject"><code>flake-monster inject</code></h2>
+    <p>Inject async delays into source files without running tests. Useful for manual inspection of what FlakeMonster inserts, or for integrating with a custom test workflow.</p>
+
+    <h3>Usage</h3>
+    <pre><span class="syn-pun">$</span> flake-monster inject <span class="syn-cmt">[options]</span> <span class="syn-cmt">[globs...]</span></pre>
+
+    <h3>Options</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Flag</th>
+          <th>Default</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>-m, --mode &lt;mode&gt;</code></td>
+          <td><code>medium</code></td>
+          <td>Injection density: <code>light</code>, <code>medium</code>, or <code>hardcore</code>.</td>
+        </tr>
+        <tr>
+          <td><code>-s, --seed &lt;seed&gt;</code></td>
+          <td><code>auto</code></td>
+          <td>Random seed for deterministic delays. Use a number for reproducibility or <code>auto</code> for a random seed.</td>
+        </tr>
+        <tr>
+          <td><code>--in-place</code></td>
+          <td><code>true</code></td>
+          <td>Modify source files directly (the default).</td>
+        </tr>
+        <tr>
+          <td><code>--workspace</code></td>
+          <td><code>false</code></td>
+          <td>Create a workspace copy instead of modifying source files. The injected workspace path is printed to the terminal.</td>
+        </tr>
+        <tr>
+          <td><code>--min-delay &lt;ms&gt;</code></td>
+          <td><code>0</code></td>
+          <td>Minimum injected delay in milliseconds.</td>
+        </tr>
+        <tr>
+          <td><code>--max-delay &lt;ms&gt;</code></td>
+          <td><code>50</code></td>
+          <td>Maximum injected delay in milliseconds.</td>
+        </tr>
+        <tr>
+          <td><code>-e, --exclude &lt;patterns...&gt;</code></td>
+          <td>&mdash;</td>
+          <td>Glob patterns to exclude from injection.</td>
+        </tr>
+        <tr>
+          <td><code>[globs...]</code></td>
+          <td><code>src/**/*.js</code></td>
+          <td>File patterns to inject delays into.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>Examples</h3>
+
+    <h4>Inject and inspect</h4>
+    <pre><span class="syn-pun">$</span> npx flake-monster inject <span class="syn-kw">--seed</span> <span class="syn-num">12345</span>
+<span class="syn-cmt"># Now look at your source files to see the injected delays</span>
+<span class="syn-pun">$</span> git diff
+<span class="syn-cmt"># When done, restore them</span>
+<span class="syn-pun">$</span> npx flake-monster restore</pre>
+
+    <h4>Inject into a workspace copy</h4>
+    <pre><span class="syn-pun">$</span> npx flake-monster inject <span class="syn-kw">--workspace</span> <span class="syn-kw">--seed</span> <span class="syn-num">42</span> <span class="syn-str">"src/**/*.js"</span>
+<span class="syn-cmt"># Workspace created: .flake-monster/workspaces/inject-seed-42</span>
+<span class="syn-cmt"># Run tests manually against the workspace</span></pre>
+
+    <h4>Hardcore injection with high delays</h4>
+    <pre><span class="syn-pun">$</span> npx flake-monster inject <span class="syn-kw">--mode</span> <span class="syn-str">hardcore</span> <span class="syn-kw">--max-delay</span> <span class="syn-num">500</span> <span class="syn-str">"lib/**/*.js"</span></pre>
+
+    <blockquote>
+      <p><strong>Safety:</strong> If you run <code>inject</code> while a previous injection is still active, FlakeMonster will detect it and prompt you to restore first. This prevents double-injection.</p>
+    </blockquote>
+
+    <h3>What gets injected</h3>
+    <p>FlakeMonster inserts two things into each file it touches:</p>
+    <ol>
+      <li>A <strong>runtime import</strong> at the top of the file that provides the delay function.</li>
+      <li>One or more <code>await __FlakeMonster__(N)</code> statements at async injection points, where <code>N</code> is a deterministic delay in milliseconds. Each injected line is tagged with a marker comment for reliable removal.</li>
+    </ol>
+    <p>The delay value <code>N</code> is computed at injection time from the seed, not at runtime. You can manually edit the delay value in the source if you want to experiment with specific timings.</p>
+
+    <!-- ────────────────────────────────────────── -->
+    <h2 id="restore"><code>flake-monster restore</code></h2>
+    <p>Remove all injected delays and restore source files to their original state. Normally called automatically at the end of a <code>test</code> run, but available as a standalone command for manual cleanup.</p>
+
+    <h3>Usage</h3>
+    <pre><span class="syn-pun">$</span> flake-monster restore <span class="syn-cmt">[options]</span></pre>
+
+    <h3>Options</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Flag</th>
+          <th>Default</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>--in-place</code></td>
+          <td><code>true</code></td>
+          <td>Restore in-place modified files (the default).</td>
+        </tr>
+        <tr>
+          <td><code>--recover</code></td>
+          <td><code>false</code></td>
+          <td>Interactive recovery mode. Scans source files for traces of injected code, shows what was found, and asks for confirmation before removing.</td>
+        </tr>
+        <tr>
+          <td><code>--dir &lt;path&gt;</code></td>
+          <td>project root</td>
+          <td>Directory to restore. Defaults to the current working directory.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>Normal restore</h3>
+    <p>When a manifest file exists (created during injection), <code>restore</code> reads it to know exactly which files were modified and removes all injected lines:</p>
+    <pre><span class="syn-pun">$</span> npx flake-monster restore
+<span class="syn-cmt">Restored 12 file(s), removed 47 injection(s)</span></pre>
+    <p>The manifest is deleted after a successful restore.</p>
+
+    <h3>Recovery mode</h3>
+    <p>If the manifest is missing or corrupt (e.g., after a crash or manual file deletion), recovery mode scans your source files for any remaining traces of FlakeMonster injection. It matches on two patterns:</p>
+    <ul>
+      <li>The <strong>marker comment stamp</strong> (<code>@flake-monster[jt92-se2j!]</code>) that tags every injected line</li>
+      <li>The <strong><code>__FlakeMonster__</code> identifier</strong> used in runtime imports and delay calls</li>
+    </ul>
+
+    <pre><span class="syn-pun">$</span> npx flake-monster restore <span class="syn-kw">--recover</span>
+<span class="syn-cmt">Scanning all source files...</span>
+
+  <span class="syn-str">src/api/client.js</span> (3 matches):
+    L2 [import] import { __FlakeMonster__ } from '../flake-monster.runtime.js';
+    L15 [stamp] await __FlakeMonster__(23); // @flake-monster[jt92-se2j!] v1
+    L42 [stamp] await __FlakeMonster__(7); // @flake-monster[jt92-se2j!] v1
+
+  <span class="syn-str">src/utils/cache.js</span> (2 matches):
+    L1 [import] import { __FlakeMonster__ } from '../flake-monster.runtime.js';
+    L28 [stamp] await __FlakeMonster__(31); // @flake-monster[jt92-se2j!] v1
+
+  Total: 5 line(s) across 2 file(s)
+
+  Remove these lines? (y/N) <span class="syn-kw">y</span>
+  <span class="syn-cmt">Recovered 2 file(s), removed 5 line(s)</span></pre>
+
+    <blockquote>
+      <p><strong>Tip:</strong> If you run <code>restore</code> with no manifest and no <code>--recover</code> flag, FlakeMonster will automatically scan for leftover injections and offer to run recovery if any are found.</p>
+    </blockquote>
+
+    <h4>Restore a specific directory</h4>
+    <pre><span class="syn-pun">$</span> npx flake-monster restore <span class="syn-kw">--dir</span> <span class="syn-str">./packages/api</span></pre>
+    <p>Restores files within the specified directory. Useful in monorepo setups or when you need to target a specific package.</p>
+
+    <!-- ────────────────────────────────────────── -->
+    <h2 id="exit-codes">Exit Codes</h2>
+    <p>FlakeMonster uses conventional exit codes so it integrates cleanly with CI systems, shell scripts, and other tooling.</p>
+    <table>
+      <thead>
+        <tr>
+          <th>Code</th>
+          <th>Meaning</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>0</code></td>
+          <td><strong>All runs passed.</strong> Every test run exited cleanly. No flaky tests detected under the current configuration.</td>
+        </tr>
+        <tr>
+          <td><code>1</code></td>
+          <td><strong>At least one run failed.</strong> One or more test runs returned a non-zero exit code, indicating potential flaky tests. The report will include which seeds triggered failures.</td>
+        </tr>
+      </tbody>
+    </table>
+    <p>In a CI pipeline, you can use the exit code to gate merges:</p>
+    <pre><span class="syn-cmt"># .github/workflows/flake-check.yml</span>
+- name: Check for flaky tests
+  run: npx flake-monster test <span class="syn-kw">--runs</span> <span class="syn-num">5</span> <span class="syn-kw">--cmd</span> <span class="syn-str">"npm test"</span>
+  <span class="syn-cmt"># Step fails if exit code is 1 (flakes detected)</span></pre>
+
+    <blockquote>
+      <p><strong>Note:</strong> Source files are always restored before FlakeMonster exits, even when runs fail. The exit code reflects test results, not the restore status.</p>
+    </blockquote>
+
+    <!-- ────────────────────────────────────────── -->
+    <h2 id="json-output">JSON Output</h2>
+    <p>Use <code>--format json</code> to get machine-readable output. This is ideal for CI pipelines, dashboards, or custom tooling that needs to parse FlakeMonster results programmatically.</p>
+
+    <pre><span class="syn-pun">$</span> npx flake-monster test <span class="syn-kw">--format</span> <span class="syn-str">json</span> <span class="syn-kw">--cmd</span> <span class="syn-str">"npm test"</span></pre>
+
+    <p>When <code>--format json</code> is set, all human-readable terminal output (progress bars, injection stats, run summaries) is suppressed. Only the final JSON object is written to stdout.</p>
+
+    <h3>Schema</h3>
+    <pre>{
+  <span class="syn-str">"version"</span>: <span class="syn-num">1</span>,
+  <span class="syn-str">"baseSeed"</span>: <span class="syn-num">3221704130</span>,
+  <span class="syn-str">"runs"</span>: [
+    {
+      <span class="syn-str">"runIndex"</span>: <span class="syn-num">0</span>,
+      <span class="syn-str">"seed"</span>: <span class="syn-num">3221704130</span>,
+      <span class="syn-str">"exitCode"</span>: <span class="syn-num">0</span>,
+      <span class="syn-str">"durationMs"</span>: <span class="syn-num">4523</span>,
+      <span class="syn-str">"parsed"</span>: <span class="syn-kw">true</span>,
+      <span class="syn-str">"totalPassed"</span>: <span class="syn-num">15</span>,
+      <span class="syn-str">"totalFailed"</span>: <span class="syn-num">0</span>
+    },
+    {
+      <span class="syn-str">"runIndex"</span>: <span class="syn-num">1</span>,
+      <span class="syn-str">"seed"</span>: <span class="syn-num">1847293651</span>,
+      <span class="syn-str">"exitCode"</span>: <span class="syn-num">1</span>,
+      <span class="syn-str">"durationMs"</span>: <span class="syn-num">5102</span>,
+      <span class="syn-str">"parsed"</span>: <span class="syn-kw">true</span>,
+      <span class="syn-str">"totalPassed"</span>: <span class="syn-num">13</span>,
+      <span class="syn-str">"totalFailed"</span>: <span class="syn-num">2</span>
+    }
+  ],
+  <span class="syn-str">"analysis"</span>: {
+    <span class="syn-str">"totalTests"</span>: <span class="syn-num">15</span>,
+    <span class="syn-str">"flakyTests"</span>: [
+      {
+        <span class="syn-str">"name"</span>: <span class="syn-str">"checkout &gt; applies discount"</span>,
+        <span class="syn-str">"file"</span>: <span class="syn-str">"test/checkout.test.js"</span>,
+        <span class="syn-str">"passedRuns"</span>: [<span class="syn-num">0</span>, <span class="syn-num">2</span>, <span class="syn-num">3</span>, <span class="syn-num">4</span>],
+        <span class="syn-str">"failedRuns"</span>: [<span class="syn-num">1</span>],
+        <span class="syn-str">"flakyRate"</span>: <span class="syn-num">0.2</span>
+      }
+    ],
+    <span class="syn-str">"stableTests"</span>: [
+      {
+        <span class="syn-str">"name"</span>: <span class="syn-str">"auth &gt; login succeeds"</span>,
+        <span class="syn-str">"file"</span>: <span class="syn-str">"test/auth.test.js"</span>,
+        <span class="syn-str">"verdict"</span>: <span class="syn-str">"stable-pass"</span>
+      }
+    ],
+    <span class="syn-str">"alwaysFailingTests"</span>: []
+  }
+}</pre>
+
+    <h3>Field reference</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Field</th>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>version</code></td>
+          <td><code>number</code></td>
+          <td>Schema version. Currently always <code>1</code>.</td>
+        </tr>
+        <tr>
+          <td><code>baseSeed</code></td>
+          <td><code>number</code></td>
+          <td>The base seed used for the test session. All per-run seeds are derived from this value.</td>
+        </tr>
+        <tr>
+          <td><code>runs</code></td>
+          <td><code>array</code></td>
+          <td>One entry per test run, in execution order.</td>
+        </tr>
+        <tr>
+          <td><code>runs[].runIndex</code></td>
+          <td><code>number</code></td>
+          <td>Zero-based index of the run.</td>
+        </tr>
+        <tr>
+          <td><code>runs[].seed</code></td>
+          <td><code>number</code></td>
+          <td>The derived seed used for this run. Pass this to <code>--seed</code> with <code>--runs 1</code> to reproduce.</td>
+        </tr>
+        <tr>
+          <td><code>runs[].exitCode</code></td>
+          <td><code>number</code></td>
+          <td>Exit code of the test command. <code>0</code> = passed, non-zero = failed.</td>
+        </tr>
+        <tr>
+          <td><code>runs[].durationMs</code></td>
+          <td><code>number</code></td>
+          <td>Wall-clock time of the test command in milliseconds.</td>
+        </tr>
+        <tr>
+          <td><code>runs[].parsed</code></td>
+          <td><code>boolean</code></td>
+          <td>Whether the test output was successfully parsed by the runner parser. If <code>false</code>, individual test results are unavailable.</td>
+        </tr>
+        <tr>
+          <td><code>runs[].totalPassed</code></td>
+          <td><code>number</code></td>
+          <td>Count of individual tests that passed in this run.</td>
+        </tr>
+        <tr>
+          <td><code>runs[].totalFailed</code></td>
+          <td><code>number</code></td>
+          <td>Count of individual tests that failed in this run.</td>
+        </tr>
+        <tr>
+          <td><code>analysis</code></td>
+          <td><code>object</code></td>
+          <td>Flakiness analysis computed across all runs.</td>
+        </tr>
+        <tr>
+          <td><code>analysis.totalTests</code></td>
+          <td><code>number</code></td>
+          <td>Total unique tests observed across all runs.</td>
+        </tr>
+        <tr>
+          <td><code>analysis.flakyTests</code></td>
+          <td><code>array</code></td>
+          <td>Tests that passed in some runs and failed in others. Sorted by <code>flakyRate</code> descending (most flaky first).</td>
+        </tr>
+        <tr>
+          <td><code>analysis.flakyTests[].name</code></td>
+          <td><code>string</code></td>
+          <td>Full test name as reported by the runner.</td>
+        </tr>
+        <tr>
+          <td><code>analysis.flakyTests[].file</code></td>
+          <td><code>string</code></td>
+          <td>Source file containing the test (when available from the runner).</td>
+        </tr>
+        <tr>
+          <td><code>analysis.flakyTests[].passedRuns</code></td>
+          <td><code>number[]</code></td>
+          <td>Run indices where this test passed.</td>
+        </tr>
+        <tr>
+          <td><code>analysis.flakyTests[].failedRuns</code></td>
+          <td><code>number[]</code></td>
+          <td>Run indices where this test failed.</td>
+        </tr>
+        <tr>
+          <td><code>analysis.flakyTests[].flakyRate</code></td>
+          <td><code>number</code></td>
+          <td>Ratio of failed runs to total runs for this test (0 to 1).</td>
+        </tr>
+        <tr>
+          <td><code>analysis.stableTests</code></td>
+          <td><code>array</code></td>
+          <td>Tests that passed in every run. Each entry has <code>name</code>, <code>file</code>, and <code>verdict: "stable-pass"</code>.</td>
+        </tr>
+        <tr>
+          <td><code>analysis.alwaysFailingTests</code></td>
+          <td><code>array</code></td>
+          <td>Tests that failed in every run (broken, not flaky). Each entry has <code>name</code>, <code>file</code>, and <code>verdict: "always-failing"</code>.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>Example: parse results in CI</h3>
+    <pre><span class="syn-cmt"># Run FlakeMonster and capture JSON output</span>
+<span class="syn-pun">$</span> npx flake-monster test <span class="syn-kw">--format</span> <span class="syn-str">json</span> <span class="syn-kw">--cmd</span> <span class="syn-str">"npm test"</span> <span class="syn-pun">></span> results.json <span class="syn-num">2</span><span class="syn-pun">></span>/dev/null
+
+<span class="syn-cmt"># Extract flaky test names with jq</span>
+<span class="syn-pun">$</span> jq -r <span class="syn-str">'.analysis.flakyTests[].name'</span> results.json
+
+<span class="syn-cmt"># Check if any tests are flaky</span>
+<span class="syn-pun">$</span> jq -e <span class="syn-str">'.analysis.flakyTests | length > 0'</span> results.json</pre>
+
+    <!-- ────────────────────────────────────────── -->
+
+    <div class="doc-nav-links">
+      <a href="index.html" class="doc-nav-link prev">
+        <span class="doc-nav-link-label">Previous</span>
+        <span class="doc-nav-link-title">Getting Started</span>
+      </a>
+      <a href="configuration.html" class="doc-nav-link next">
+        <span class="doc-nav-link-label">Next</span>
+        <span class="doc-nav-link-title">Configuration</span>
+      </a>
+    </div>
+  </main>
+  <script type="module" src="components/layout.js"></script>
+</body>
+</html>

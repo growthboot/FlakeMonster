@@ -17,18 +17,18 @@ export function registerTestCommand(program) {
   program
     .command('test')
     .description('Run tests multiple times with injected delays to find flakes')
-    .option('-r, --runs <n>', 'Number of test runs', '10')
-    .option('-m, --mode <mode>', 'Injection density: light, medium, hardcore', 'medium')
-    .option('-s, --seed <seed>', 'Base seed (or "auto")', 'auto')
-    .option('-c, --cmd <command>', 'Test command to execute', 'npm test')
+    .option('-r, --runs <n>', 'Number of test runs')
+    .option('-m, --mode <mode>', 'Injection density: light, medium, hardcore')
+    .option('-s, --seed <seed>', 'Base seed (or "auto")')
+    .option('-c, --cmd <command>', 'Test command to execute')
     .option('--in-place', 'Modify source files directly (default)', true)
     .option('--workspace', 'Use workspace copies instead of modifying source files directly', false)
     .option('--keep-on-fail', 'Keep workspace on test failure for inspection', false)
     .option('--keep-all', 'Keep all workspaces (pass or fail)', false)
-    .option('--min-delay <ms>', 'Minimum delay in milliseconds', '0')
-    .option('--max-delay <ms>', 'Maximum delay in milliseconds', '50')
+    .option('--min-delay <ms>', 'Minimum delay in milliseconds')
+    .option('--max-delay <ms>', 'Maximum delay in milliseconds')
     .option('-f, --format <format>', 'Output format: text or json', 'text')
-    .option('--runner <runner>', 'Test runner: jest, node-test, tap, or auto', 'auto')
+    .option('--runner <runner>', 'Test runner: jest, node-test, playwright, tap, or auto', 'auto')
     .option('-e, --exclude <patterns...>', 'Glob patterns to exclude (appends to config defaults)')
     .argument('[globs...]', 'File patterns to process', ['src/**/*.js'])
     .action(async (globs, options) => {
@@ -37,9 +37,9 @@ export function registerTestCommand(program) {
         const config = await loadConfig(projectRoot);
         const merged = mergeWithCliOptions(config, options);
 
-        const baseSeed = parseSeed(options.seed);
-        const runs = Number(options.runs);
-        const testCmd = options.cmd;
+        const baseSeed = parseSeed(options.seed ?? merged.seed ?? 'auto');
+        const runs = Number(options.runs ?? merged.runs);
+        const testCmd = options.cmd ?? merged.testCommand;
         const inPlace = !options.workspace;
         const jsonOutput = options.format === 'json';
 

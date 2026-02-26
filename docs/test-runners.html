@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Test Runners — FlakeMonster Docs</title>
+  <link rel="icon" type="image/svg+xml" href="../website/logo.svg">
+  <link rel="stylesheet" href="../website/styles.css">
+  <link rel="stylesheet" href="docs.css">
+  <script>
+    (function() {
+      var t = localStorage.getItem('theme');
+      if (!t) t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-theme', t);
+    })();
+  </script>
+</head>
+<body class="docs-page">
+
+  <main id="doc-content">
+    <h1>Test Runners</h1>
+    <p class="doc-lead">FlakeMonster auto-detects your test runner and parses output to identify individual test results. You can also specify the runner explicitly.</p>
+
+    <h2 id="auto-detection">Auto-Detection</h2>
+    <p>FlakeMonster examines the test command string you provide (via <code>--cmd</code> or the <code>testCommand</code> config field) and matches it against known runner patterns. The first match wins:</p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Command contains</th>
+          <th>Detected runner</th>
+          <th>Output format</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>jest</code> or <code>react-scripts test</code></td>
+          <td>Jest</td>
+          <td>JSON</td>
+        </tr>
+        <tr>
+          <td><code>node --test</code></td>
+          <td>node:test (TAP)</td>
+          <td>TAP</td>
+        </tr>
+        <tr>
+          <td><code>playwright</code></td>
+          <td>Playwright</td>
+          <td>JSON</td>
+        </tr>
+        <tr>
+          <td><em>(anything else)</em></td>
+          <td>TAP (fallback)</td>
+          <td>TAP</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p>Auto-detection works for the vast majority of projects. If your command string does not contain one of the expected keywords (for example, you wrap your test runner in a shell script), use the <code>--runner</code> flag to tell FlakeMonster which parser to use:</p>
+    <pre><span class="syn-pun">$</span> flake-monster test --runner jest --cmd <span class="syn-str">"./scripts/run-tests.sh"</span></pre>
+
+    <h2 id="jest">Jest</h2>
+    <p>Jest is the most widely used JavaScript test runner, commonly found in React and Node.js projects.</p>
+
+    <h3>How it works</h3>
+    <ul>
+      <li><strong>Detection:</strong> The command string contains <code>jest</code> or <code>react-scripts test</code></li>
+      <li><strong>Output format:</strong> JSON (FlakeMonster requires Jest's structured JSON output)</li>
+      <li><strong>Reporter flag:</strong> FlakeMonster automatically injects <code>--json</code> into the command if not already present</li>
+      <li><strong>Parsing:</strong> FlakeMonster reads Jest's JSON output to extract the status of every individual test case, including the test name, suite file, pass/fail status, and failure messages</li>
+    </ul>
+
+    <h3>Example</h3>
+    <pre><span class="syn-cmt"># Auto-detected (command contains "jest")</span>
+<span class="syn-pun">$</span> flake-monster test --cmd <span class="syn-str">"npx jest"</span>
+
+<span class="syn-cmt"># Explicit runner selection</span>
+<span class="syn-pun">$</span> flake-monster test --runner jest --cmd <span class="syn-str">"npx jest"</span>
+
+<span class="syn-cmt"># With Create React App</span>
+<span class="syn-pun">$</span> flake-monster test --cmd <span class="syn-str">"npx react-scripts test --watchAll=false"</span></pre>
+
+    <h3>Jest configuration tips</h3>
+    <blockquote>
+      <p><strong>Tip:</strong> If your Jest config uses <code>--forceExit</code>, keep it. FlakeMonster does not interfere with Jest lifecycle flags.</p>
+    </blockquote>
+    <p>If you use a custom Jest config path, include it in the command:</p>
+    <pre><span class="syn-pun">$</span> flake-monster test --cmd <span class="syn-str">"npx jest --config jest.integration.config.js"</span></pre>
+
+    <h2 id="node-test">Node.js Native Test Runner</h2>
+    <p>Node.js 18+ ships with a built-in test runner (<code>node:test</code>). FlakeMonster parses its TAP output to track individual test results.</p>
+
+    <h3>How it works</h3>
+    <ul>
+      <li><strong>Detection:</strong> The command string contains <code>node --test</code></li>
+      <li><strong>Output format:</strong> TAP (Test Anything Protocol)</li>
+      <li><strong>Reporter flag:</strong> FlakeMonster automatically injects <code>--test-reporter tap</code> if no reporter is specified</li>
+    </ul>
+
+    <h3>Example</h3>
+    <pre><span class="syn-cmt"># Auto-detected (command contains "node --test")</span>
+<span class="syn-pun">$</span> flake-monster test --cmd <span class="syn-str">"node --test test/**/*.test.js"</span>
+
+<span class="syn-cmt"># Explicit runner selection</span>
+<span class="syn-pun">$</span> flake-monster test --runner node-test --cmd <span class="syn-str">"node --test test/**/*.test.js"</span>
+
+<span class="syn-cmt"># With a specific file pattern</span>
+<span class="syn-pun">$</span> flake-monster test --cmd <span class="syn-str">"node --test 'src/**/*.spec.js'"</span></pre>
+
+    <blockquote class="warn">
+      <p><strong>Important — Node 20 JSON reporter crash:</strong> Node 20 does <strong>not</strong> have a built-in <code>json</code> test reporter. Using <code>--test-reporter json</code> causes an exit code 7 crash. FlakeMonster handles this by always using the <code>tap</code> reporter, which is stable across Node 18, 20, and 22.</p>
+    </blockquote>
+
+    <h3>Reporter behavior</h3>
+    <p>The Node.js test runner has a few output quirks that FlakeMonster accounts for:</p>
+    <table>
+      <thead>
+        <tr>
+          <th>Reporter</th>
+          <th>Output stream</th>
+          <th>FlakeMonster support</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>spec</code> (default)</td>
+          <td>stderr</td>
+          <td>Not used (outputs to stderr, not stdout)</td>
+        </tr>
+        <tr>
+          <td><code>tap</code></td>
+          <td>stdout</td>
+          <td>Used by FlakeMonster</td>
+        </tr>
+        <tr>
+          <td><code>dot</code></td>
+          <td>stdout</td>
+          <td>Not supported (no per-test detail)</td>
+        </tr>
+        <tr>
+          <td><code>json</code></td>
+          <td>N/A</td>
+          <td>Crashes on Node 20 — do not use</td>
+        </tr>
+      </tbody>
+    </table>
+    <p>FlakeMonster captures both stdout and stderr, but parses TAP output from stdout. If you have explicitly set <code>--test-reporter spec</code>, FlakeMonster will override it to <code>tap</code> so that test results can be parsed correctly.</p>
+
+    <h2 id="playwright">Playwright</h2>
+    <p>Playwright is a popular browser automation framework used for end-to-end testing. FlakeMonster parses Playwright's JSON reporter output.</p>
+
+    <h3>How it works</h3>
+    <ul>
+      <li><strong>Detection:</strong> The command string contains <code>playwright</code></li>
+      <li><strong>Output format:</strong> JSON</li>
+      <li><strong>Reporter flag:</strong> FlakeMonster automatically appends <code>--reporter=json</code> if no reporter is specified in the command</li>
+      <li><strong>Parsing:</strong> FlakeMonster reads Playwright's JSON report to extract test titles, file paths, pass/fail status, and error messages per test case</li>
+    </ul>
+
+    <h3>Example</h3>
+    <pre><span class="syn-cmt"># Auto-detected (command contains "playwright")</span>
+<span class="syn-pun">$</span> flake-monster test --cmd <span class="syn-str">"npx playwright test"</span>
+
+<span class="syn-cmt"># Explicit runner selection</span>
+<span class="syn-pun">$</span> flake-monster test --runner playwright --cmd <span class="syn-str">"npx playwright test"</span>
+
+<span class="syn-cmt"># Run a specific test file</span>
+<span class="syn-pun">$</span> flake-monster test --cmd <span class="syn-str">"npx playwright test tests/checkout.spec.ts"</span></pre>
+
+    <h3>Playwright configuration tips</h3>
+    <p>FlakeMonster injects delays into your <strong>source files</strong>, not the Playwright test files. The injected <code>await</code> delays execute in the browser context when Playwright drives tests against the modified code.</p>
+    <blockquote>
+      <p><strong>Tip:</strong> For Playwright projects, consider using <code>mode: "hardcore"</code> and higher <code>maxDelayMs</code> values (100-200ms). Browser-based tests are more sensitive to timing differences than unit tests.</p>
+    </blockquote>
+    <p>If your project uses a custom Playwright config, include it in the command:</p>
+    <pre><span class="syn-pun">$</span> flake-monster test --cmd <span class="syn-str">"npx playwright test --config=playwright.ci.config.ts"</span></pre>
+
+    <h2 id="tap">TAP</h2>
+    <p>TAP (Test Anything Protocol) is FlakeMonster's default fallback parser. It works with any runner that produces TAP-formatted output.</p>
+
+    <h3>How it works</h3>
+    <ul>
+      <li><strong>Detection:</strong> Used when no other runner is detected (default fallback)</li>
+      <li><strong>Output format:</strong> TAP protocol (versions 12, 13, and 14)</li>
+      <li><strong>Parsing:</strong> FlakeMonster reads <code>ok</code> / <code>not ok</code> lines to determine per-test pass/fail status</li>
+    </ul>
+
+    <h3>Compatible runners</h3>
+    <p>The TAP parser works with any test runner that outputs standard TAP. Common runners with TAP support:</p>
+    <table>
+      <thead>
+        <tr>
+          <th>Runner</th>
+          <th>TAP flag</th>
+          <th>Example command</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Mocha</td>
+          <td><code>--reporter tap</code></td>
+          <td><code>npx mocha --reporter tap</code></td>
+        </tr>
+        <tr>
+          <td>AVA</td>
+          <td><code>--tap</code></td>
+          <td><code>npx ava --tap</code></td>
+        </tr>
+        <tr>
+          <td>tape</td>
+          <td><em>(native TAP output)</em></td>
+          <td><code>npx tape 'test/**/*.js'</code></td>
+        </tr>
+        <tr>
+          <td>node:test</td>
+          <td><code>--test-reporter tap</code></td>
+          <td><code>node --test --test-reporter tap</code></td>
+        </tr>
+        <tr>
+          <td>tap</td>
+          <td><em>(native TAP output)</em></td>
+          <td><code>npx tap</code></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>Example</h3>
+    <pre><span class="syn-cmt"># Falls back to TAP parser automatically</span>
+<span class="syn-pun">$</span> flake-monster test --cmd <span class="syn-str">"npx mocha --reporter tap"</span>
+
+<span class="syn-cmt"># Explicit runner selection</span>
+<span class="syn-pun">$</span> flake-monster test --runner tap --cmd <span class="syn-str">"npm test"</span>
+
+<span class="syn-cmt"># With tape (natively outputs TAP)</span>
+<span class="syn-pun">$</span> flake-monster test --cmd <span class="syn-str">"npx tape 'test/**/*.js'"</span>
+
+<span class="syn-cmt"># With AVA</span>
+<span class="syn-pun">$</span> flake-monster test --cmd <span class="syn-str">"npx ava --tap"</span></pre>
+
+    <blockquote>
+      <p><strong>Tip:</strong> If your test runner does not produce TAP output by default, check if it has a TAP reporter option. Most popular runners do. The TAP parser is the most universal fallback.</p>
+    </blockquote>
+
+    <h2 id="browser">Browser-Based Testing</h2>
+    <p>FlakeMonster's source-to-source injection approach works naturally with browser test runners. The injected <code>await</code> statements are plain JavaScript — they survive bundling, transpilation, and execute correctly in the browser.</p>
+
+    <h3>Why it works</h3>
+    <p>FlakeMonster modifies your <strong>source files</strong>, not test files. When a browser test runner builds and serves your code, the injected delays are included in the bundle. This means:</p>
+    <ul>
+      <li>Delays execute in the real browser context, affecting actual render timing</li>
+      <li>Race conditions between components, API calls, and DOM updates are exposed</li>
+      <li>No special browser plugins or test runner modifications are needed</li>
+    </ul>
+
+    <h3>Playwright</h3>
+    <p>Playwright drives a real browser against your application. FlakeMonster injects delays into source files before Playwright compiles and serves them:</p>
+    <pre><span class="syn-cmt"># Inject delays, then run Playwright tests</span>
+<span class="syn-pun">$</span> flake-monster test --cmd <span class="syn-str">"npx playwright test"</span>
+
+<span class="syn-cmt"># With higher delays for browser-sensitive timing</span>
+<span class="syn-pun">$</span> flake-monster test --cmd <span class="syn-str">"npx playwright test"</span> --maxDelayMs <span class="syn-num">200</span> --mode <span class="syn-str">"hardcore"</span></pre>
+
+    <h3>Cypress</h3>
+    <p>Cypress runs tests in a browser and serves your source code through its dev server. FlakeMonster injects delays before Cypress picks up the files:</p>
+    <pre><span class="syn-cmt"># Run Cypress in headless mode with TAP output</span>
+<span class="syn-pun">$</span> flake-monster test --runner tap --cmd <span class="syn-str">"npx cypress run"</span>
+
+<span class="syn-cmt"># With a specific spec file</span>
+<span class="syn-pun">$</span> flake-monster test --runner tap --cmd <span class="syn-str">"npx cypress run --spec 'cypress/e2e/checkout.cy.js'"</span></pre>
+
+    <h3>Vitest (browser mode)</h3>
+    <p>Vitest's browser mode runs tests in a real browser. FlakeMonster injects delays into source files before Vitest bundles them:</p>
+    <pre><span class="syn-cmt"># Vitest with browser mode</span>
+<span class="syn-pun">$</span> flake-monster test --runner tap --cmd <span class="syn-str">"npx vitest run --reporter=tap"</span>
+
+<span class="syn-cmt"># Vitest with JSON reporter</span>
+<span class="syn-pun">$</span> flake-monster test --runner tap --cmd <span class="syn-str">"npx vitest run --reporter=tap-flat"</span></pre>
+
+    <h3>Browser testing configuration</h3>
+    <p>Browser tests are typically more sensitive to timing than unit tests. Recommended config for browser-based test suites:</p>
+    <pre><span class="syn-cmt">// .flakemonsterrc.json</span>
+<span class="syn-pun">{</span>
+  <span class="syn-kw">"include"</span><span class="syn-pun">:</span> <span class="syn-pun">[</span><span class="syn-str">"src/**/*.js"</span><span class="syn-pun">,</span> <span class="syn-str">"src/**/*.ts"</span><span class="syn-pun">],</span>
+  <span class="syn-kw">"exclude"</span><span class="syn-pun">:</span> <span class="syn-pun">[</span>
+    <span class="syn-str">"**/node_modules/**"</span><span class="syn-pun">,</span>
+    <span class="syn-str">"**/dist/**"</span><span class="syn-pun">,</span>
+    <span class="syn-str">"**/build/**"</span><span class="syn-pun">,</span>
+    <span class="syn-str">"**/playwright-report/**"</span><span class="syn-pun">,</span>
+    <span class="syn-str">"**/cypress/fixtures/**"</span><span class="syn-pun">,</span>
+    <span class="syn-str">"**/test-results/**"</span>
+  <span class="syn-pun">],</span>
+  <span class="syn-kw">"mode"</span><span class="syn-pun">:</span> <span class="syn-str">"hardcore"</span><span class="syn-pun">,</span>
+  <span class="syn-kw">"minDelayMs"</span><span class="syn-pun">:</span> <span class="syn-num">5</span><span class="syn-pun">,</span>
+  <span class="syn-kw">"maxDelayMs"</span><span class="syn-pun">:</span> <span class="syn-num">200</span><span class="syn-pun">,</span>
+  <span class="syn-kw">"skipTryCatch"</span><span class="syn-pun">:</span> <span class="syn-num">true</span><span class="syn-pun">,</span>
+  <span class="syn-kw">"runs"</span><span class="syn-pun">:</span> <span class="syn-num">20</span>
+<span class="syn-pun">}</span></pre>
+    <p>The higher <code>maxDelayMs</code> of 200ms exaggerates timing differences that browser rendering is sensitive to. Setting <code>skipTryCatch</code> to <code>true</code> avoids interfering with framework error boundaries and retry logic. Running 20 iterations increases the chance of catching intermittent failures.</p>
+
+    <h2 id="explicit">Explicit Runner Selection</h2>
+    <p>Use the <code>--runner</code> flag to override auto-detection. This is useful when:</p>
+    <ul>
+      <li>Your test command is wrapped in a shell script that hides the runner name</li>
+      <li>You use an <code>npm</code> script alias that does not contain the runner keyword</li>
+      <li>Auto-detection picks the wrong runner (e.g., a command containing "jest" that actually calls a different runner)</li>
+    </ul>
+
+    <h3>Available runner values</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Value</th>
+          <th>Parser</th>
+          <th>Auto-injected flags</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>jest</code></td>
+          <td>Jest JSON parser</td>
+          <td><code>--json</code></td>
+        </tr>
+        <tr>
+          <td><code>node-test</code></td>
+          <td>TAP parser</td>
+          <td><code>--test-reporter tap</code></td>
+        </tr>
+        <tr>
+          <td><code>playwright</code></td>
+          <td>Playwright JSON parser</td>
+          <td><code>--reporter=json</code></td>
+        </tr>
+        <tr>
+          <td><code>tap</code></td>
+          <td>TAP parser</td>
+          <td><em>(none)</em></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>Examples</h3>
+    <pre><span class="syn-cmt"># Explicit Jest</span>
+<span class="syn-pun">$</span> flake-monster test --runner jest --cmd <span class="syn-str">"npx jest"</span>
+
+<span class="syn-cmt"># Explicit Playwright</span>
+<span class="syn-pun">$</span> flake-monster test --runner playwright --cmd <span class="syn-str">"npx playwright test"</span>
+
+<span class="syn-cmt"># Explicit node:test</span>
+<span class="syn-pun">$</span> flake-monster test --runner node-test --cmd <span class="syn-str">"node --test"</span>
+
+<span class="syn-cmt"># Explicit TAP (for any TAP-compatible runner)</span>
+<span class="syn-pun">$</span> flake-monster test --runner tap --cmd <span class="syn-str">"npm test"</span>
+
+<span class="syn-cmt"># Wrapped script — auto-detection cannot see "jest" in the command</span>
+<span class="syn-pun">$</span> flake-monster test --runner jest --cmd <span class="syn-str">"./scripts/run-tests.sh"</span>
+
+<span class="syn-cmt"># npm script alias — "npm test" does not reveal the underlying runner</span>
+<span class="syn-pun">$</span> flake-monster test --runner jest --cmd <span class="syn-str">"npm test"</span></pre>
+
+    <div class="doc-nav-links">
+      <a href="seed-system.html" class="doc-nav-link prev">
+        <span class="doc-nav-link-label">Previous</span>
+        <span class="doc-nav-link-title">Seed System</span>
+      </a>
+      <a href="github-action.html" class="doc-nav-link next">
+        <span class="doc-nav-link-label">Next</span>
+        <span class="doc-nav-link-title">GitHub Action</span>
+      </a>
+    </div>
+  </main>
+
+  <script type="module" src="components/layout.js"></script>
+</body>
+</html>

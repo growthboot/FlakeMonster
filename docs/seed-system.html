@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Seed System — FlakeMonster Docs</title>
+  <link rel="icon" type="image/svg+xml" href="../website/logo.svg">
+  <link rel="stylesheet" href="../website/styles.css">
+  <link rel="stylesheet" href="docs.css">
+  <script>
+    (function() {
+      var t = localStorage.getItem('theme');
+      if (!t) t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-theme', t);
+    })();
+  </script>
+</head>
+<body class="docs-page">
+  <main id="doc-content">
+    <h1>Seed System</h1>
+    <p class="doc-lead">FlakeMonster uses deterministic seeding to ensure reproducible test failures. Same seed, same delays, every run.</p>
+
+    <h2 id="how-seeds-work">How Seeds Work</h2>
+    <p>Every FlakeMonster run is governed by a single <strong>base seed</strong> — a 32-bit integer that serves as the root of all randomness. From this one number, the entire set of injected delays is derived deterministically.</p>
+    <p>The key properties of the seed system:</p>
+    <ul>
+      <li><strong>Base seed</strong> — the starting point for all runs. Specified via <code>--seed &lt;number&gt;</code> or <code>--seed auto</code> (random). When omitted, <code>auto</code> is the default.</li>
+      <li><strong>Derived seeds</strong> — each injection point gets a unique derived seed computed from the base seed, the file path, the function name, and the statement index within that function.</li>
+      <li><strong>Deterministic delays</strong> — the derived seed determines the exact delay value (0&ndash;50ms by default) injected at that point.</li>
+      <li><strong>Reproducibility</strong> — same base seed produces the same derived seeds, the same delays, and therefore the same test outcome.</li>
+    </ul>
+    <p>This means that when a test fails, you can take the reported seed, pass it back to FlakeMonster, and reproduce the exact same timing conditions that triggered the failure.</p>
+
+    <h2 id="derivation">Seed Derivation</h2>
+    <p>The derivation chain transforms one base seed into thousands of unique, deterministic delay values. Here is how it works step by step:</p>
+
+    <h3>1. Base Seed</h3>
+    <p>The base seed is the single number you provide (or FlakeMonster generates for you). For example:</p>
+    <pre><span class="syn-pun">$</span> flake-monster test --seed <span class="syn-num">12345</span> --cmd <span class="syn-str">"npm test"</span></pre>
+    <p>Here <code>12345</code> is the base seed. Everything else flows from it.</p>
+
+    <h3>2. Per-Run Seed</h3>
+    <p>When you run multiple iterations (e.g., <code>--runs 10</code>), each run gets its own derived seed so that each iteration explores a different timing pattern:</p>
+    <pre><span class="syn-cmt">// Run 0</span>
+<span class="syn-id">runSeed</span> <span class="syn-op">=</span> <span class="syn-id">deriveSeed</span>(<span class="syn-num">12345</span>, <span class="syn-str">"run:0"</span>)   <span class="syn-cmt">// e.g. 3892047156</span>
+
+<span class="syn-cmt">// Run 1</span>
+<span class="syn-id">runSeed</span> <span class="syn-op">=</span> <span class="syn-id">deriveSeed</span>(<span class="syn-num">12345</span>, <span class="syn-str">"run:1"</span>)   <span class="syn-cmt">// e.g. 1740283695</span>
+
+<span class="syn-cmt">// Run 2</span>
+<span class="syn-id">runSeed</span> <span class="syn-op">=</span> <span class="syn-id">deriveSeed</span>(<span class="syn-num">12345</span>, <span class="syn-str">"run:2"</span>)   <span class="syn-cmt">// e.g. 2618493027</span></pre>
+    <p>The <code>deriveSeed</code> function combines the base seed with a context string using DJB2 hashing:</p>
+    <pre><span class="syn-kw">export function</span> <span class="syn-id">deriveSeed</span>(<span class="syn-id">baseSeed</span>, <span class="syn-id">context</span>) {
+  <span class="syn-kw">return</span> (<span class="syn-id">baseSeed</span> <span class="syn-op">+</span> <span class="syn-id">hashString</span>(<span class="syn-id">context</span>)) <span class="syn-op">|</span> <span class="syn-num">0</span>;
+}</pre>
+
+    <h3>3. Per-Injection Seed</h3>
+    <p>Within each run, every injection point gets its own seed derived from the run seed and a context string that encodes the file path, function name, and statement index:</p>
+    <pre><span class="syn-cmt">// For the first await in getUser() inside src/api.js</span>
+<span class="syn-id">injectionSeed</span> <span class="syn-op">=</span> <span class="syn-id">deriveSeed</span>(<span class="syn-id">runSeed</span>, <span class="syn-str">"src/api.js:getUser:0"</span>)
+
+<span class="syn-cmt">// For the second await in getUser()</span>
+<span class="syn-id">injectionSeed</span> <span class="syn-op">=</span> <span class="syn-id">deriveSeed</span>(<span class="syn-id">runSeed</span>, <span class="syn-str">"src/api.js:getUser:1"</span>)
+
+<span class="syn-cmt">// For the first await in saveOrder() inside src/checkout.js</span>
+<span class="syn-id">injectionSeed</span> <span class="syn-op">=</span> <span class="syn-id">deriveSeed</span>(<span class="syn-id">runSeed</span>, <span class="syn-str">"src/checkout.js:saveOrder:0"</span>)</pre>
+    <p>This ensures that every injection point has a distinct seed, even across different files and functions.</p>
+
+    <h3>4. Delay Value</h3>
+    <p>The injection seed is used to create a Mulberry32 PRNG, which produces a float in the range [0, 1). This float is then scaled to the delay range:</p>
+    <pre><span class="syn-id">rng</span>   <span class="syn-op">=</span> <span class="syn-id">createRng</span>(<span class="syn-id">injectionSeed</span>)
+<span class="syn-id">delay</span> <span class="syn-op">=</span> Math.<span class="syn-id">round</span>(<span class="syn-id">minDelay</span> <span class="syn-op">+</span> <span class="syn-id">rng</span>() <span class="syn-op">*</span> (<span class="syn-id">maxDelay</span> <span class="syn-op">-</span> <span class="syn-id">minDelay</span>))</pre>
+    <p>With the default range of 0&ndash;50ms, if <code>rng()</code> returns <code>0.3</code>, the delay is:</p>
+    <pre><span class="syn-id">delay</span> <span class="syn-op">=</span> Math.<span class="syn-id">round</span>(<span class="syn-num">0</span> <span class="syn-op">+</span> <span class="syn-num">0.3</span> <span class="syn-op">*</span> <span class="syn-num">50</span>)  <span class="syn-cmt">// = Math.round(15) = 15ms</span></pre>
+    <p>This value is embedded directly into the source code at injection time:</p>
+    <pre><span class="syn-cmt">// @flake-monster[jt92-se2j!] v1</span>
+<span class="syn-kw">await</span> <span class="syn-id">__FlakeMonster__</span>(<span class="syn-num">15</span>);</pre>
+
+    <h3>Full Derivation Chain</h3>
+    <p>Putting it all together, here is the complete chain from base seed to injected delay:</p>
+    <pre><span class="syn-id">baseSeed</span>       <span class="syn-op">=</span> <span class="syn-num">12345</span>
+                    <span class="syn-op">|</span>
+                    <span class="syn-op">v</span>
+<span class="syn-id">runSeed</span>        <span class="syn-op">=</span> <span class="syn-id">deriveSeed</span>(<span class="syn-num">12345</span>, <span class="syn-str">"run:0"</span>)
+                    <span class="syn-op">|</span>
+                    <span class="syn-op">v</span>
+<span class="syn-id">injectionSeed</span> <span class="syn-op">=</span> <span class="syn-id">deriveSeed</span>(<span class="syn-id">runSeed</span>, <span class="syn-str">"src/api.js:getUser:0"</span>)
+                    <span class="syn-op">|</span>
+                    <span class="syn-op">v</span>
+<span class="syn-id">rng</span>            <span class="syn-op">=</span> <span class="syn-id">createRng</span>(<span class="syn-id">injectionSeed</span>)
+                    <span class="syn-op">|</span>
+                    <span class="syn-op">v</span>
+<span class="syn-id">delay</span>          <span class="syn-op">=</span> Math.<span class="syn-id">round</span>(<span class="syn-id">minDelay</span> <span class="syn-op">+</span> <span class="syn-id">rng</span>() <span class="syn-op">*</span> (<span class="syn-id">maxDelay</span> <span class="syn-op">-</span> <span class="syn-id">minDelay</span>))
+                    <span class="syn-op">|</span>
+                    <span class="syn-op">v</span>
+<span class="syn-kw">await</span> <span class="syn-id">__FlakeMonster__</span>(<span class="syn-num">15</span>)  <span class="syn-cmt">// injected into source</span></pre>
+
+    <h3>The Hashing Functions</h3>
+    <p>Two algorithms power the seed system:</p>
+    <p><strong>DJB2 Hash</strong> — converts context strings (file paths, function names) into 32-bit integers. This is the <code>hashString</code> function used inside <code>deriveSeed</code>:</p>
+    <pre><span class="syn-kw">export function</span> <span class="syn-id">hashString</span>(<span class="syn-id">str</span>) {
+  <span class="syn-kw">let</span> <span class="syn-id">hash</span> <span class="syn-op">=</span> <span class="syn-num">5381</span>;
+  <span class="syn-kw">for</span> (<span class="syn-kw">let</span> <span class="syn-id">i</span> <span class="syn-op">=</span> <span class="syn-num">0</span>; <span class="syn-id">i</span> <span class="syn-op">&lt;</span> <span class="syn-id">str</span>.<span class="syn-id">length</span>; <span class="syn-id">i</span><span class="syn-op">++</span>) {
+    <span class="syn-id">hash</span> <span class="syn-op">=</span> ((<span class="syn-id">hash</span> <span class="syn-op">&lt;&lt;</span> <span class="syn-num">5</span>) <span class="syn-op">+</span> <span class="syn-id">hash</span> <span class="syn-op">+</span> <span class="syn-id">str</span>.<span class="syn-id">charCodeAt</span>(<span class="syn-id">i</span>)) <span class="syn-op">|</span> <span class="syn-num">0</span>;
+  }
+  <span class="syn-kw">return</span> <span class="syn-id">hash</span> <span class="syn-op">&gt;&gt;&gt;</span> <span class="syn-num">0</span>;
+}</pre>
+    <p><strong>Mulberry32 PRNG</strong> — a fast, high-quality 32-bit PRNG used to generate the final float values for delay computation:</p>
+    <pre><span class="syn-kw">export function</span> <span class="syn-id">createRng</span>(<span class="syn-id">seed</span>) {
+  <span class="syn-kw">return function</span> () {
+    <span class="syn-id">seed</span> <span class="syn-op">|=</span> <span class="syn-num">0</span>;
+    <span class="syn-id">seed</span> <span class="syn-op">=</span> (<span class="syn-id">seed</span> <span class="syn-op">+</span> <span class="syn-num">0x6d2b79f5</span>) <span class="syn-op">|</span> <span class="syn-num">0</span>;
+    <span class="syn-kw">let</span> <span class="syn-id">t</span> <span class="syn-op">=</span> Math.<span class="syn-id">imul</span>(<span class="syn-id">seed</span> <span class="syn-op">^</span> (<span class="syn-id">seed</span> <span class="syn-op">&gt;&gt;&gt;</span> <span class="syn-num">15</span>), <span class="syn-num">1</span> <span class="syn-op">|</span> <span class="syn-id">seed</span>);
+    <span class="syn-id">t</span> <span class="syn-op">=</span> (<span class="syn-id">t</span> <span class="syn-op">+</span> Math.<span class="syn-id">imul</span>(<span class="syn-id">t</span> <span class="syn-op">^</span> (<span class="syn-id">t</span> <span class="syn-op">&gt;&gt;&gt;</span> <span class="syn-num">7</span>), <span class="syn-num">61</span> <span class="syn-op">|</span> <span class="syn-id">t</span>)) <span class="syn-op">^</span> <span class="syn-id">t</span>;
+    <span class="syn-kw">return</span> ((<span class="syn-id">t</span> <span class="syn-op">^</span> (<span class="syn-id">t</span> <span class="syn-op">&gt;&gt;&gt;</span> <span class="syn-num">14</span>)) <span class="syn-op">&gt;&gt;&gt;</span> <span class="syn-num">0</span>) <span class="syn-op">/</span> <span class="syn-num">4294967296</span>;
+  };
+}</pre>
+
+    <h2 id="reproducing">Reproducing Failures</h2>
+    <p>When FlakeMonster detects a flaky test, it reports the exact seed that triggered the failure:</p>
+    <pre>FlakeMonster v0.4.6  seed=12345  mode=medium  runs=10
+
+Run  1/10 PASS (seed=3892047156)
+Run  2/10 PASS (seed=1740283695)
+Run  3/10 <span class="syn-kw">FAIL</span> (seed=948271536)
+Run  4/10 PASS (seed=2618493027)
+...
+
+<span class="syn-cmt">-- Results --</span>
+
+1 flaky test detected:
+
+  cart > applies discount code
+    Failed seed: 948271536
+    Flaky rate: 10%</pre>
+    <p>The seed in the <code>FAIL</code> line is the per-run derived seed. To reproduce the exact same failure, pass it back as the base seed with a single run:</p>
+    <pre><span class="syn-pun">$</span> flake-monster test --runs <span class="syn-num">1</span> --seed <span class="syn-num">948271536</span> --cmd <span class="syn-str">"npm test"</span></pre>
+    <p>This injects the exact same delays at the exact same locations, reproducing the timing conditions that caused the failure.</p>
+
+    <h3>Manual Injection for Debugging</h3>
+    <p>For deeper investigation, you can inject the delays manually and leave them in place while you debug:</p>
+    <pre><span class="syn-cmt"># Step 1: Inject with the failing seed</span>
+<span class="syn-pun">$</span> flake-monster inject --seed <span class="syn-num">948271536</span> <span class="syn-str">"src/**/*.js"</span>
+
+<span class="syn-cmt"># Step 2: Run your tests — the failure will reproduce</span>
+<span class="syn-pun">$</span> npm test
+
+<span class="syn-cmt"># Step 3: Open the failing file and inspect the injected delays</span>
+<span class="syn-cmt"># You can see exactly which delay caused the timing issue</span>
+
+<span class="syn-cmt"># Step 4: Debug, fix the race condition, then clean up</span>
+<span class="syn-pun">$</span> flake-monster restore</pre>
+    <p>Because delays are computed at injection time and embedded as literal values (e.g., <code>await __FlakeMonster__(15)</code>), you can read the injected file and see every delay. You can even edit delay values by hand to narrow down which timing window triggers the bug.</p>
+
+    <h2 id="auto-vs-fixed">Auto vs Fixed Seeds</h2>
+    <p>FlakeMonster supports two seed modes, each suited to different workflows:</p>
+
+    <h3>Auto Seeds (default)</h3>
+    <pre><span class="syn-pun">$</span> flake-monster test --cmd <span class="syn-str">"npm test"</span>
+<span class="syn-cmt"># equivalent to: --seed auto</span></pre>
+    <p>When <code>--seed auto</code> is used (or no <code>--seed</code> flag is provided), FlakeMonster generates a random base seed using <code>Math.random()</code>. This is ideal for exploratory testing where you want to discover new failure modes across different timing patterns.</p>
+    <p>The generated seed is always printed in the output header, so you can capture it for reproduction:</p>
+    <pre>FlakeMonster v0.4.6  seed=<span class="syn-num">3221704130</span>  mode=medium  runs=10</pre>
+
+    <h3>Fixed Seeds</h3>
+    <pre><span class="syn-pun">$</span> flake-monster test --seed <span class="syn-num">3221704130</span> --cmd <span class="syn-str">"npm test"</span></pre>
+    <p>A fixed seed produces the exact same derived seeds across every invocation. This is useful for:</p>
+    <ul>
+      <li><strong>Reproduction</strong> — re-running a known failing seed to confirm the bug is fixed</li>
+      <li><strong>Deterministic CI</strong> — running the same timing patterns on every commit to catch regressions</li>
+      <li><strong>Bisecting</strong> — narrowing down which commit introduced a flaky test under specific timing</li>
+    </ul>
+
+    <blockquote>
+      <p><strong>Tip:</strong> In CI, consider using a rotating seed strategy. For example, use the git commit hash as the seed so each commit gets a unique but reproducible timing pattern: <code>--seed $(git rev-parse HEAD | cut -c1-8 | xargs printf "%d\n" 0x)</code></p>
+    </blockquote>
+
+    <h2 id="per-run">Per-Run Variation</h2>
+    <p>Even with a fixed base seed, each run within a multi-run session gets different delays. This is the fundamental mechanism that lets FlakeMonster explore different timing orderings.</p>
+    <p>With <code>--seed 12345 --runs 5</code>, the runs look like this:</p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Run</th>
+          <th>Context String</th>
+          <th>Derived Run Seed</th>
+          <th>Delays</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>0</td>
+          <td><code>"run:0"</code></td>
+          <td>3892047156</td>
+          <td>Different set A</td>
+        </tr>
+        <tr>
+          <td>1</td>
+          <td><code>"run:1"</code></td>
+          <td>1740283695</td>
+          <td>Different set B</td>
+        </tr>
+        <tr>
+          <td>2</td>
+          <td><code>"run:2"</code></td>
+          <td>2618493027</td>
+          <td>Different set C</td>
+        </tr>
+        <tr>
+          <td>3</td>
+          <td><code>"run:3"</code></td>
+          <td>947261538</td>
+          <td>Different set D</td>
+        </tr>
+        <tr>
+          <td>4</td>
+          <td><code>"run:4"</code></td>
+          <td>3105827419</td>
+          <td>Different set E</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p>Each run re-injects with its own timing profile, but the base seed is the root — you only need it to reproduce the entire sequence. Run 0 always gets the same derived seed for a given base seed, Run 1 always gets its same seed, and so on.</p>
+    <p>This is why the output reports both the base seed (in the header) and the per-run seed (next to each PASS/FAIL):</p>
+    <pre>FlakeMonster v0.4.6  seed=<span class="syn-num">12345</span>  mode=medium  runs=5   <span class="syn-cmt">&lt;-- base seed</span>
+
+Run 1/5 PASS (seed=<span class="syn-num">3892047156</span>)   <span class="syn-cmt">&lt;-- per-run seed</span>
+Run 2/5 PASS (seed=<span class="syn-num">1740283695</span>)
+Run 3/5 <span class="syn-kw">FAIL</span> (seed=<span class="syn-num">2618493027</span>)   <span class="syn-cmt">&lt;-- use this to reproduce</span>
+Run 4/5 PASS (seed=<span class="syn-num">947261538</span>)
+Run 5/5 PASS (seed=<span class="syn-num">3105827419</span>)</pre>
+
+    <h2 id="delay-range">Delay Range</h2>
+    <p>The delay range controls the minimum and maximum milliseconds that can be injected at any point. These values determine how aggressively FlakeMonster perturbs your async timing.</p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Flag</th>
+          <th>Default</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>--min-delay &lt;ms&gt;</code></td>
+          <td><code>0</code></td>
+          <td>Minimum injected delay in milliseconds</td>
+        </tr>
+        <tr>
+          <td><code>--max-delay &lt;ms&gt;</code></td>
+          <td><code>50</code></td>
+          <td>Maximum injected delay in milliseconds</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p>The delay for each injection point is computed using the Mulberry32 PRNG seeded with the derived seed:</p>
+    <pre><span class="syn-id">delay</span> <span class="syn-op">=</span> Math.<span class="syn-id">round</span>(<span class="syn-id">minDelay</span> <span class="syn-op">+</span> <span class="syn-id">rng</span>() <span class="syn-op">*</span> (<span class="syn-id">maxDelay</span> <span class="syn-op">-</span> <span class="syn-id">minDelay</span>))</pre>
+
+    <h3>Choosing a Range</h3>
+    <p><strong>Default (0&ndash;50ms)</strong> — good for most projects. Introduces enough timing variation to surface common race conditions without making tests painfully slow:</p>
+    <pre><span class="syn-pun">$</span> flake-monster test --cmd <span class="syn-str">"npm test"</span>
+<span class="syn-cmt"># delays range from 0ms to 50ms</span></pre>
+
+    <p><strong>Narrow range (0&ndash;10ms)</strong> — for projects where tests are sensitive to even small timing changes, or when you want faster runs:</p>
+    <pre><span class="syn-pun">$</span> flake-monster test --max-delay <span class="syn-num">10</span> --cmd <span class="syn-str">"npm test"</span>
+<span class="syn-cmt"># delays range from 0ms to 10ms — subtle but fast</span></pre>
+
+    <p><strong>Wide range (10&ndash;200ms)</strong> — for stress testing. Amplifies timing differences to catch race conditions that only appear under heavy load or slow networks:</p>
+    <pre><span class="syn-pun">$</span> flake-monster test --min-delay <span class="syn-num">10</span> --max-delay <span class="syn-num">200</span> --cmd <span class="syn-str">"npm test"</span>
+<span class="syn-cmt"># delays range from 10ms to 200ms — aggressive stress test</span></pre>
+
+    <p><strong>Non-zero minimum (5&ndash;50ms)</strong> — ensures every injection point gets at least some delay. Useful when you want to guarantee that no async operation resolves instantly:</p>
+    <pre><span class="syn-pun">$</span> flake-monster test --min-delay <span class="syn-num">5</span> --cmd <span class="syn-str">"npm test"</span>
+<span class="syn-cmt"># every injection point gets at least 5ms of delay</span></pre>
+
+    <blockquote class="warn">
+      <p><strong>Warning:</strong> Very high max-delay values (500ms+) will significantly slow down your test suite. With 100 injection points and <code>--max-delay 500</code>, a single run could add up to 50 seconds of cumulative delay. Use wide ranges sparingly or reduce <code>--runs</code> to compensate.</p>
+    </blockquote>
+
+    <h3>Impact on Flake Detection</h3>
+    <p>The delay range directly affects what kinds of flaky tests FlakeMonster can detect:</p>
+    <ul>
+      <li><strong>Small range (0&ndash;10ms)</strong> — catches tight race conditions where operations compete for the same event loop tick</li>
+      <li><strong>Medium range (0&ndash;50ms)</strong> — catches most timing-dependent bugs including those involving debouncing, throttling, and typical async patterns</li>
+      <li><strong>Large range (10&ndash;200ms+)</strong> — catches ordering issues that only manifest when operations take noticeably different amounts of time, simulating network latency or slow I/O</li>
+    </ul>
+    <p>If your initial run with defaults finds no flakes, consider increasing the range before concluding your tests are stable. Some race conditions only appear under wider timing differentials.</p>
+
+    <div class="doc-nav-links">
+      <a href="injection-modes.html" class="doc-nav-link prev">
+        <span class="doc-nav-link-label">Previous</span>
+        <span class="doc-nav-link-title">Injection Modes</span>
+      </a>
+      <a href="test-runners.html" class="doc-nav-link next">
+        <span class="doc-nav-link-label">Next</span>
+        <span class="doc-nav-link-title">Test Runners</span>
+      </a>
+    </div>
+  </main>
+  <script type="module" src="components/layout.js"></script>
+</body>
+</html>

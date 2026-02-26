@@ -90,15 +90,11 @@
       <a href="#" class="nav-brand">FlakeMonster</a>
       <div class="nav-links">
         <a href="#pipeline-demo">How It Works</a>
-        <a href="#jitter-demo">Jitter</a>
-        <a href="#code-demo">Injection</a>
-        <a href="#seed-demo">Seeds</a>
-        <a href="#skill-section">Agent Skill</a>
-        <a href="#ci-section">GitHub Action</a>
         <a href="#pricing-section">Pricing</a>
-        <a href="#roadmap-section">Roadmap</a>
-        <a href="#mission-section">Mission</a>
+        <a href="setup.html">Setup</a>
+        <a href="docs/">Docs</a>
         <a href="https://github.com/growthboot/FlakeMonster" target="_blank" rel="nofollow noopener">GitHub</a>
+        <a href="account.html" class="nav-account-link">Account</a>
         <button class="theme-toggle" data-theme-toggle aria-label="Toggle dark mode"></button>
       </div>
     </div>
@@ -937,7 +933,7 @@
             <span class="mission-icon">&gt;</span>
             <div>
               <strong>Not everything needs AI</strong>
-              <p>AI is great at many things, but some problems have cheaper, faster, more deterministic solutions. Algorithmic tools run in milliseconds, cost nothing to operate, and give you the same answer every time. There's a huge class of bugs that can be caught without a model ever seeing your code.</p>
+              <p>AI is great at many things, but some problems have cheaper, faster, more deterministic solutions. Algorithmic tools run in milliseconds, cost next to nothing to operate, and give you the same answer every time. There's a huge class of bugs that can be caught without a model ever seeing your code.</p>
             </div>
           </div>
 
@@ -956,61 +952,79 @@
   <!-- Footer -->
   <footer>
     <div class="footer-wave">
-      <!-- Layer 1 – slow, gentle swell (period 720, 2+2 periods, thickness 22) -->
       <svg class="wave-layer wave-1" viewBox="0 14 2880 74" preserveAspectRatio="none">
         <path d="M0,40 C240,62 480,18 720,40 C960,62 1200,18 1440,40 C1680,62 1920,18 2160,40 C2400,62 2640,18 2880,40 L2880,62 C2640,40 2400,84 2160,62 C1920,40 1680,84 1440,62 C1200,40 960,84 720,62 C480,40 240,84 0,62 Z" fill="var(--accent)" opacity="0.10"/>
       </svg>
-      <!-- Layer 2 – medium, counter-drift (period 480, 3+3 periods, thickness 18) -->
       <svg class="wave-layer wave-2" viewBox="0 14 2880 74" preserveAspectRatio="none">
         <path d="M0,46 C160,66 320,26 480,46 C640,66 800,26 960,46 C1120,66 1280,26 1440,46 C1600,66 1760,26 1920,46 C2080,66 2240,26 2400,46 C2560,66 2720,26 2880,46 L2880,64 C2720,44 2560,84 2400,64 C2240,44 2080,84 1920,64 C1760,44 1600,84 1440,64 C1280,44 1120,84 960,64 C800,44 640,84 480,64 C320,44 160,84 0,64 Z" fill="var(--accent)" opacity="0.06"/>
       </svg>
-      <!-- Layer 3 – faster ripple (period 360, 4+4 periods, thickness 16) -->
       <svg class="wave-layer wave-3" viewBox="0 14 2880 74" preserveAspectRatio="none">
         <path d="M0,44 C120,60 240,28 360,44 C480,60 600,28 720,44 C840,60 960,28 1080,44 C1200,60 1320,28 1440,44 C1560,60 1680,28 1800,44 C1920,60 2040,28 2160,44 C2280,60 2400,28 2520,44 C2640,60 2760,28 2880,44 L2880,60 C2760,44 2640,76 2520,60 C2400,44 2280,76 2160,60 C2040,44 1920,76 1800,60 C1680,44 1560,76 1440,60 C1320,44 1200,76 1080,60 C960,44 840,76 720,60 C600,44 480,76 360,60 C240,44 120,76 0,60 Z" fill="var(--accent)" opacity="0.04"/>
       </svg>
     </div>
 
-    <div class="footer-inner">
-      <div class="footer-brand">
-        <img src="website/logo.svg" alt="FlakeMonster" class="footer-logo">
-        <span class="footer-name">FlakeMonster</span>
-        <p class="footer-tagline">Surface flaky tests with<br>deterministic async delays</p>
+    <!-- Brand hero area -->
+    <div class="footer-hero">
+      <img src="website/logo.svg" alt="FlakeMonster" class="footer-logo">
+      <span class="footer-name">FlakeMonster</span>
+      <p class="footer-tagline">Surface flaky tests with deterministic async delays</p>
+      <div class="footer-quickstart">
+        <span class="footer-qs-prompt">$</span> npx flake-monster test --cmd <span class="footer-qs-str">"npm test"</span>
       </div>
+    </div>
 
+    <!-- Columns -->
+    <div class="footer-columns-wrap">
       <div class="footer-columns">
         <div class="footer-col">
-          <h4>Demos</h4>
-          <a href="#pipeline-demo">How It Works</a>
-          <a href="#jitter-demo">Jitter Animation</a>
-          <a href="#code-demo">Code Injection</a>
-          <a href="#seed-demo">Seed Explorer</a>
-        </div>
-        <div class="footer-col">
-          <h4>Product</h4>
+          <h4>Free &amp; Open Source</h4>
+          <a href="#pipeline-demo">CLI Tool</a>
           <a href="#ci-section">GitHub Action</a>
-          <a href="#pricing-section">Pricing</a>
-          <a href="#roadmap-section">Roadmap</a>
+          <a href="#skill-section">Agent Skill</a>
+          <a href="setup.html">Setup Guide</a>
+          <a href="docs/">Docs</a>
+          <a href="https://github.com/growthboot/FlakeMonster" target="_blank" rel="nofollow noopener">GitHub</a>
+        </div>
+        <div class="footer-col footer-col-paid">
+          <h4>Unlimited GitHub Actions</h4>
+          <span class="footer-feature">Remove the 50/month cap</span>
+          <span class="footer-catch">Protect your PRs from flaky tests</span>
+          <div class="footer-paid-bottom">
+            <span class="footer-price">$29<span>/mo</span></span>
+            <a href="pricing.html" class="footer-cta">Get started &rarr;</a>
+          </div>
         </div>
         <div class="footer-col">
-          <h4>Project</h4>
-          <a href="https://github.com/growthboot/FlakeMonster" target="_blank" rel="nofollow noopener">GitHub</a>
+          <h4>Community</h4>
+          <a href="#roadmap-section">Roadmap</a>
           <a href="https://github.com/growthboot/FlakeMonster/issues" target="_blank" rel="nofollow noopener">Issues</a>
-          <a href="https://github.com/growthboot/FlakeMonster#readme" target="_blank" rel="nofollow noopener">Docs</a>
+          <a href="#mission-section">Mission</a>
         </div>
       </div>
     </div>
 
     <div class="footer-art">
+      <span class="footer-dot" style="--x:5%;--d:3.2s"></span>
       <span class="footer-dot" style="--x:12%;--d:3s"></span>
+      <span class="footer-dot" style="--x:22%;--d:4.2s"></span>
       <span class="footer-dot" style="--x:28%;--d:4.5s"></span>
+      <span class="footer-dot" style="--x:38%;--d:2.8s"></span>
       <span class="footer-dot" style="--x:45%;--d:2.5s"></span>
+      <span class="footer-dot" style="--x:55%;--d:3.6s"></span>
       <span class="footer-dot" style="--x:62%;--d:3.8s"></span>
+      <span class="footer-dot" style="--x:72%;--d:2.6s"></span>
       <span class="footer-dot" style="--x:78%;--d:2.8s"></span>
+      <span class="footer-dot" style="--x:85%;--d:3.4s"></span>
       <span class="footer-dot" style="--x:90%;--d:4s"></span>
+      <span class="footer-dot" style="--x:95%;--d:3.1s"></span>
     </div>
 
     <div class="footer-bottom">
       <span>CLI licensed under MIT</span>
+      <span class="footer-sep">&middot;</span>
+      <a href="https://www.npmjs.com/package/flake-monster" target="_blank" rel="nofollow noopener" class="footer-bottom-link">npm</a>
+      <span class="footer-sep">&middot;</span>
+      <a href="https://github.com/growthboot/FlakeMonster" target="_blank" rel="nofollow noopener" class="footer-bottom-link">GitHub</a>
       <span class="footer-sep">&middot;</span>
       <span>Made to catch the bugs that hide</span>
       <span class="footer-sep">&middot;</span>

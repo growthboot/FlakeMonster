@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GitHub Action — FlakeMonster Docs</title>
+  <link rel="icon" type="image/svg+xml" href="../website/logo.svg">
+  <link rel="stylesheet" href="../website/styles.css">
+  <link rel="stylesheet" href="docs.css">
+  <script>
+    (function() {
+      var t = localStorage.getItem('theme');
+      if (!t) t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-theme', t);
+    })();
+  </script>
+</head>
+<body class="docs-page">
+
+  <main id="doc-content">
+    <h1>GitHub Action</h1>
+    <p class="doc-lead">Catch flaky tests on every pull request with the FlakeMonster GitHub Action. One workflow file, automatic PR comments.</p>
+
+    <h2 id="quick-setup">Quick Setup</h2>
+    <p>Add a single workflow file to your repository and FlakeMonster will run on every pull request. Create <code>.github/workflows/flake-check.yml</code> with the following contents:</p>
+    <pre><span class="syn-kw">name</span><span class="syn-pun">:</span> <span class="syn-str">Flake Check</span>
+<span class="syn-kw">on</span><span class="syn-pun">:</span> <span class="syn-pun">[</span><span class="syn-str">pull_request</span><span class="syn-pun">]</span>
+
+<span class="syn-kw">permissions</span><span class="syn-pun">:</span>
+  <span class="syn-kw">pull-requests</span><span class="syn-pun">:</span> <span class="syn-str">write</span>
+  <span class="syn-kw">id-token</span><span class="syn-pun">:</span> <span class="syn-str">write</span>
+
+<span class="syn-kw">jobs</span><span class="syn-pun">:</span>
+  <span class="syn-kw">flake-monster</span><span class="syn-pun">:</span>
+    <span class="syn-kw">runs-on</span><span class="syn-pun">:</span> <span class="syn-str">ubuntu-latest</span>
+    <span class="syn-kw">steps</span><span class="syn-pun">:</span>
+      <span class="syn-pun">-</span> <span class="syn-kw">uses</span><span class="syn-pun">:</span> <span class="syn-str">actions/checkout@v4</span>
+      <span class="syn-pun">-</span> <span class="syn-kw">uses</span><span class="syn-pun">:</span> <span class="syn-str">actions/setup-node@v4</span>
+        <span class="syn-kw">with</span><span class="syn-pun">:</span>
+          <span class="syn-kw">node-version</span><span class="syn-pun">:</span> <span class="syn-num">20</span>
+      <span class="syn-pun">-</span> <span class="syn-kw">run</span><span class="syn-pun">:</span> <span class="syn-str">npm ci</span>
+      <span class="syn-pun">-</span> <span class="syn-kw">uses</span><span class="syn-pun">:</span> <span class="syn-str">growthboot/FlakeMonster-Action@v1</span>
+        <span class="syn-kw">with</span><span class="syn-pun">:</span>
+          <span class="syn-kw">test-command</span><span class="syn-pun">:</span> <span class="syn-str">'npm test'</span></pre>
+    <p>That is all you need. The action installs FlakeMonster, injects delays into your source files, runs your test command multiple times, restores your code, and posts a comment on the PR with the results.</p>
+
+    <h2 id="inputs">Inputs</h2>
+    <p>All inputs are optional. The defaults work well for most JavaScript projects.</p>
+    <table>
+      <thead>
+        <tr>
+          <th>Input</th>
+          <th>Default</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>test-command</code></td>
+          <td><code>npm test</code></td>
+          <td>The test command to run. This is passed directly to FlakeMonster's <code>--cmd</code> flag.</td>
+        </tr>
+        <tr>
+          <td><code>runner</code></td>
+          <td><code>auto</code></td>
+          <td>Test runner to use for result parsing. Options: <code>jest</code>, <code>node-test</code>, <code>playwright</code>, <code>tap</code>, <code>auto</code>. When set to <code>auto</code>, FlakeMonster detects the runner from your project.</td>
+        </tr>
+        <tr>
+          <td><code>runs</code></td>
+          <td><code>5</code></td>
+          <td>Number of test runs to perform. More runs catch less frequent flakes but take longer.</td>
+        </tr>
+        <tr>
+          <td><code>mode</code></td>
+          <td><code>medium</code></td>
+          <td>Injection density. <code>light</code> injects fewer delays for faster runs. <code>medium</code> covers most async paths. <code>hardcore</code> injects into every possible location.</td>
+        </tr>
+        <tr>
+          <td><code>globs</code></td>
+          <td><code>src/**/*.js</code></td>
+          <td>File patterns to inject into, space-separated. For example: <code>src/**/*.js lib/**/*.ts</code>.</td>
+        </tr>
+        <tr>
+          <td><code>min-delay</code></td>
+          <td><code>0</code></td>
+          <td>Minimum delay in milliseconds injected at each point.</td>
+        </tr>
+        <tr>
+          <td><code>max-delay</code></td>
+          <td><code>50</code></td>
+          <td>Maximum delay in milliseconds injected at each point.</td>
+        </tr>
+        <tr>
+          <td><code>github-token</code></td>
+          <td><code>${{ github.token }}</code></td>
+          <td>GitHub token used to post PR comments. The default <code>GITHUB_TOKEN</code> works for most cases.</td>
+        </tr>
+        <tr>
+          <td><code>fail-on-flake</code></td>
+          <td><code>true</code></td>
+          <td>Whether to fail the workflow when flaky tests are detected. Set to <code>false</code> to report flakes without blocking the PR.</td>
+        </tr>
+        <tr>
+          <td><code>flake-monster-version</code></td>
+          <td><code>latest</code></td>
+          <td>The version of FlakeMonster to install. Pin this to a specific version (e.g. <code>0.4.6</code>) for reproducible builds.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2 id="outputs">Outputs</h2>
+    <p>The action exposes outputs you can use in subsequent workflow steps.</p>
+    <table>
+      <thead>
+        <tr>
+          <th>Output</th>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>flaky-count</code></td>
+          <td>number</td>
+          <td>The number of flaky tests detected across all runs. Zero when every test is stable.</td>
+        </tr>
+        <tr>
+          <td><code>result-json</code></td>
+          <td>string</td>
+          <td>The full FlakeMonster result as a JSON string. Parse it with <code>fromJSON()</code> in subsequent steps to access individual test results, seeds, and timing data.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2 id="pr-comments">PR Comments</h2>
+    <p>The action automatically posts a comment on the pull request with the results of the flake check. No configuration is needed beyond the <code>pull-requests: write</code> permission.</p>
+    <p>When flaky tests are detected, the comment includes:</p>
+    <ul>
+      <li><strong>Flaky test count</strong> — the total number of tests that passed on some runs and failed on others</li>
+      <li><strong>Results table</strong> — each flaky test with its name, flaky rate (percentage of runs that failed), and the specific seeds that triggered failures</li>
+      <li><strong>Seed list</strong> — all seeds used across every run, so you can reproduce any individual run locally</li>
+    </ul>
+    <p>When all tests are stable across every run, the action posts a short success message confirming no flakes were found.</p>
+    <p>The action updates the same comment on subsequent pushes to the same PR rather than creating duplicate comments.</p>
+
+    <h2 id="free-tier">Free Tier</h2>
+    <p>The FlakeMonster GitHub Action is free for small teams and open-source projects.</p>
+    <ul>
+      <li><strong>50 checks per month</strong> per repository, with no signup required</li>
+      <li>Usage is tracked automatically via GitHub OIDC tokens — the <code>id-token: write</code> permission enables this without exposing any secrets</li>
+      <li>At <strong>30+ checks</strong> in a billing period, the action adds a usage warning to the PR comment so you can plan ahead</li>
+      <li>At <strong>50+ checks</strong>, the action skips the flake analysis and posts a quota message instead. Your workflow will still pass — it just will not run the flake check</li>
+    </ul>
+    <blockquote>
+      <p><strong>Tip:</strong> If you only run the action on <code>pull_request</code> events (not on every push), most teams stay well within the free tier.</p>
+    </blockquote>
+
+    <h2 id="pro-tier">Pro Tier</h2>
+    <p>For teams that need unlimited checks, the Pro tier costs <strong>$29/month per team</strong>.</p>
+    <ul>
+      <li>Unlimited flake checks across all repositories in the team</li>
+      <li>Upgrade at the <a href="../website/index.html#pricing">pricing page</a></li>
+      <li>Cancel anytime — your access continues through the end of the billing period</li>
+    </ul>
+
+    <h2 id="permissions">Permissions</h2>
+    <p>The action requires two permissions in your workflow file. Here is what each one does and why it is needed:</p>
+    <table>
+      <thead>
+        <tr>
+          <th>Permission</th>
+          <th>Why It Is Needed</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>pull-requests: write</code></td>
+          <td>Allows the action to post and update PR comments with the flake check results. Without this, the action runs but cannot report its findings on the PR.</td>
+        </tr>
+        <tr>
+          <td><code>id-token: write</code></td>
+          <td>Allows the action to request a GitHub OIDC token for free tier usage tracking. The token is sent to the FlakeMonster API to count checks — no repository secrets or code leave GitHub. If omitted, the action still works but cannot track usage, and you may hit the free tier limit without warning.</td>
+        </tr>
+      </tbody>
+    </table>
+    <blockquote>
+      <p><strong>Note:</strong> These are the only permissions needed. The action does not request <code>contents: write</code> or any other elevated access. Your source code is only modified inside the runner and restored before the step completes.</p>
+    </blockquote>
+
+    <h2 id="examples">Example Workflows</h2>
+    <p>Below are complete workflow examples for common scenarios. Copy any of these into <code>.github/workflows/flake-check.yml</code> in your repository.</p>
+
+    <h3>Basic PR Check</h3>
+    <p>Fast flake check on every pull request. Uses light mode with 5 runs for quick feedback.</p>
+    <pre><span class="syn-kw">name</span><span class="syn-pun">:</span> <span class="syn-str">Flake Check</span>
+<span class="syn-kw">on</span><span class="syn-pun">:</span> <span class="syn-pun">[</span><span class="syn-str">pull_request</span><span class="syn-pun">]</span>
+
+<span class="syn-kw">permissions</span><span class="syn-pun">:</span>
+  <span class="syn-kw">pull-requests</span><span class="syn-pun">:</span> <span class="syn-str">write</span>
+  <span class="syn-kw">id-token</span><span class="syn-pun">:</span> <span class="syn-str">write</span>
+
+<span class="syn-kw">jobs</span><span class="syn-pun">:</span>
+  <span class="syn-kw">flake-check</span><span class="syn-pun">:</span>
+    <span class="syn-kw">runs-on</span><span class="syn-pun">:</span> <span class="syn-str">ubuntu-latest</span>
+    <span class="syn-kw">steps</span><span class="syn-pun">:</span>
+      <span class="syn-pun">-</span> <span class="syn-kw">uses</span><span class="syn-pun">:</span> <span class="syn-str">actions/checkout@v4</span>
+      <span class="syn-pun">-</span> <span class="syn-kw">uses</span><span class="syn-pun">:</span> <span class="syn-str">actions/setup-node@v4</span>
+        <span class="syn-kw">with</span><span class="syn-pun">:</span>
+          <span class="syn-kw">node-version</span><span class="syn-pun">:</span> <span class="syn-num">20</span>
+      <span class="syn-pun">-</span> <span class="syn-kw">run</span><span class="syn-pun">:</span> <span class="syn-str">npm ci</span>
+      <span class="syn-pun">-</span> <span class="syn-kw">uses</span><span class="syn-pun">:</span> <span class="syn-str">growthboot/FlakeMonster-Action@v1</span>
+        <span class="syn-kw">with</span><span class="syn-pun">:</span>
+          <span class="syn-kw">test-command</span><span class="syn-pun">:</span> <span class="syn-str">'npm test'</span>
+          <span class="syn-kw">runs</span><span class="syn-pun">:</span> <span class="syn-num">5</span>
+          <span class="syn-kw">mode</span><span class="syn-pun">:</span> <span class="syn-str">light</span></pre>
+
+    <h3>Thorough Nightly Build</h3>
+    <p>Runs 20 iterations in hardcore mode on a schedule. Catches the most subtle flakes that quick PR checks might miss.</p>
+    <pre><span class="syn-kw">name</span><span class="syn-pun">:</span> <span class="syn-str">Nightly Flake Scan</span>
+<span class="syn-kw">on</span><span class="syn-pun">:</span>
+  <span class="syn-kw">schedule</span><span class="syn-pun">:</span>
+    <span class="syn-pun">-</span> <span class="syn-kw">cron</span><span class="syn-pun">:</span> <span class="syn-str">'0 3 * * *'</span>  <span class="syn-cmt"># Every night at 3 AM UTC</span>
+  <span class="syn-kw">workflow_dispatch</span><span class="syn-pun">:</span>  <span class="syn-cmt"># Allow manual trigger</span>
+
+<span class="syn-kw">permissions</span><span class="syn-pun">:</span>
+  <span class="syn-kw">pull-requests</span><span class="syn-pun">:</span> <span class="syn-str">write</span>
+  <span class="syn-kw">id-token</span><span class="syn-pun">:</span> <span class="syn-str">write</span>
+
+<span class="syn-kw">jobs</span><span class="syn-pun">:</span>
+  <span class="syn-kw">deep-scan</span><span class="syn-pun">:</span>
+    <span class="syn-kw">runs-on</span><span class="syn-pun">:</span> <span class="syn-str">ubuntu-latest</span>
+    <span class="syn-kw">steps</span><span class="syn-pun">:</span>
+      <span class="syn-pun">-</span> <span class="syn-kw">uses</span><span class="syn-pun">:</span> <span class="syn-str">actions/checkout@v4</span>
+      <span class="syn-pun">-</span> <span class="syn-kw">uses</span><span class="syn-pun">:</span> <span class="syn-str">actions/setup-node@v4</span>
+        <span class="syn-kw">with</span><span class="syn-pun">:</span>
+          <span class="syn-kw">node-version</span><span class="syn-pun">:</span> <span class="syn-num">20</span>
+      <span class="syn-pun">-</span> <span class="syn-kw">run</span><span class="syn-pun">:</span> <span class="syn-str">npm ci</span>
+      <span class="syn-pun">-</span> <span class="syn-kw">uses</span><span class="syn-pun">:</span> <span class="syn-str">growthboot/FlakeMonster-Action@v1</span>
+        <span class="syn-kw">with</span><span class="syn-pun">:</span>
+          <span class="syn-kw">test-command</span><span class="syn-pun">:</span> <span class="syn-str">'npm test'</span>
+          <span class="syn-kw">runs</span><span class="syn-pun">:</span> <span class="syn-num">20</span>
+          <span class="syn-kw">mode</span><span class="syn-pun">:</span> <span class="syn-str">hardcore</span>
+          <span class="syn-kw">max-delay</span><span class="syn-pun">:</span> <span class="syn-num">100</span>
+          <span class="syn-kw">fail-on-flake</span><span class="syn-pun">:</span> <span class="syn-str">false</span>  <span class="syn-cmt"># Report only, don't fail</span></pre>
+
+    <h3>Playwright Project</h3>
+    <p>End-to-end testing with Playwright. Targets test utilities and page objects rather than the test files themselves.</p>
+    <pre><span class="syn-kw">name</span><span class="syn-pun">:</span> <span class="syn-str">Flake Check (E2E)</span>
+<span class="syn-kw">on</span><span class="syn-pun">:</span> <span class="syn-pun">[</span><span class="syn-str">pull_request</span><span class="syn-pun">]</span>
+
+<span class="syn-kw">permissions</span><span class="syn-pun">:</span>
+  <span class="syn-kw">pull-requests</span><span class="syn-pun">:</span> <span class="syn-str">write</span>
+  <span class="syn-kw">id-token</span><span class="syn-pun">:</span> <span class="syn-str">write</span>
+
+<span class="syn-kw">jobs</span><span class="syn-pun">:</span>
+  <span class="syn-kw">flake-e2e</span><span class="syn-pun">:</span>
+    <span class="syn-kw">runs-on</span><span class="syn-pun">:</span> <span class="syn-str">ubuntu-latest</span>
+    <span class="syn-kw">steps</span><span class="syn-pun">:</span>
+      <span class="syn-pun">-</span> <span class="syn-kw">uses</span><span class="syn-pun">:</span> <span class="syn-str">actions/checkout@v4</span>
+      <span class="syn-pun">-</span> <span class="syn-kw">uses</span><span class="syn-pun">:</span> <span class="syn-str">actions/setup-node@v4</span>
+        <span class="syn-kw">with</span><span class="syn-pun">:</span>
+          <span class="syn-kw">node-version</span><span class="syn-pun">:</span> <span class="syn-num">20</span>
+      <span class="syn-pun">-</span> <span class="syn-kw">run</span><span class="syn-pun">:</span> <span class="syn-str">npm ci</span>
+      <span class="syn-pun">-</span> <span class="syn-kw">run</span><span class="syn-pun">:</span> <span class="syn-str">npx playwright install --with-deps</span>
+      <span class="syn-pun">-</span> <span class="syn-kw">uses</span><span class="syn-pun">:</span> <span class="syn-str">growthboot/FlakeMonster-Action@v1</span>
+        <span class="syn-kw">with</span><span class="syn-pun">:</span>
+          <span class="syn-kw">test-command</span><span class="syn-pun">:</span> <span class="syn-str">'npx playwright test'</span>
+          <span class="syn-kw">runner</span><span class="syn-pun">:</span> <span class="syn-str">playwright</span>
+          <span class="syn-kw">runs</span><span class="syn-pun">:</span> <span class="syn-num">5</span>
+          <span class="syn-kw">mode</span><span class="syn-pun">:</span> <span class="syn-str">medium</span>
+          <span class="syn-kw">globs</span><span class="syn-pun">:</span> <span class="syn-str">'src/**/*.js e2e/helpers/**/*.js'</span></pre>
+
+    <h3>Using Outputs to Conditionally Fail</h3>
+    <p>Run the flake check without failing, then use the outputs to decide what happens next. This is useful when you want to add custom logic, like only failing when more than a threshold of flakes are found.</p>
+    <pre><span class="syn-kw">name</span><span class="syn-pun">:</span> <span class="syn-str">Flake Check (Custom Logic)</span>
+<span class="syn-kw">on</span><span class="syn-pun">:</span> <span class="syn-pun">[</span><span class="syn-str">pull_request</span><span class="syn-pun">]</span>
+
+<span class="syn-kw">permissions</span><span class="syn-pun">:</span>
+  <span class="syn-kw">pull-requests</span><span class="syn-pun">:</span> <span class="syn-str">write</span>
+  <span class="syn-kw">id-token</span><span class="syn-pun">:</span> <span class="syn-str">write</span>
+
+<span class="syn-kw">jobs</span><span class="syn-pun">:</span>
+  <span class="syn-kw">flake-check</span><span class="syn-pun">:</span>
+    <span class="syn-kw">runs-on</span><span class="syn-pun">:</span> <span class="syn-str">ubuntu-latest</span>
+    <span class="syn-kw">steps</span><span class="syn-pun">:</span>
+      <span class="syn-pun">-</span> <span class="syn-kw">uses</span><span class="syn-pun">:</span> <span class="syn-str">actions/checkout@v4</span>
+      <span class="syn-pun">-</span> <span class="syn-kw">uses</span><span class="syn-pun">:</span> <span class="syn-str">actions/setup-node@v4</span>
+        <span class="syn-kw">with</span><span class="syn-pun">:</span>
+          <span class="syn-kw">node-version</span><span class="syn-pun">:</span> <span class="syn-num">20</span>
+      <span class="syn-pun">-</span> <span class="syn-kw">run</span><span class="syn-pun">:</span> <span class="syn-str">npm ci</span>
+
+      <span class="syn-pun">-</span> <span class="syn-kw">name</span><span class="syn-pun">:</span> <span class="syn-str">Run FlakeMonster</span>
+        <span class="syn-kw">id</span><span class="syn-pun">:</span> <span class="syn-str">flake</span>
+        <span class="syn-kw">uses</span><span class="syn-pun">:</span> <span class="syn-str">growthboot/FlakeMonster-Action@v1</span>
+        <span class="syn-kw">with</span><span class="syn-pun">:</span>
+          <span class="syn-kw">test-command</span><span class="syn-pun">:</span> <span class="syn-str">'npm test'</span>
+          <span class="syn-kw">runs</span><span class="syn-pun">:</span> <span class="syn-num">10</span>
+          <span class="syn-kw">fail-on-flake</span><span class="syn-pun">:</span> <span class="syn-str">false</span>  <span class="syn-cmt"># Don't fail yet</span>
+
+      <span class="syn-pun">-</span> <span class="syn-kw">name</span><span class="syn-pun">:</span> <span class="syn-str">Fail if too many flakes</span>
+        <span class="syn-kw">if</span><span class="syn-pun">:</span> <span class="syn-str">fromJSON(steps.flake.outputs.flaky-count) > 3</span>
+        <span class="syn-kw">run</span><span class="syn-pun">:</span> <span class="syn-pun">|</span>
+          <span class="syn-str">echo "Found ${{ steps.flake.outputs.flaky-count }} flaky tests (threshold: 3)"</span>
+          <span class="syn-str">exit 1</span>
+
+      <span class="syn-pun">-</span> <span class="syn-kw">name</span><span class="syn-pun">:</span> <span class="syn-str">Parse detailed results</span>
+        <span class="syn-kw">if</span><span class="syn-pun">:</span> <span class="syn-str">steps.flake.outputs.flaky-count != '0'</span>
+        <span class="syn-kw">run</span><span class="syn-pun">:</span> <span class="syn-pun">|</span>
+          <span class="syn-str">echo '${{ steps.flake.outputs.result-json }}' | jq '.flakyTests[]'</span></pre>
+
+    <div class="doc-nav-links">
+      <a href="test-runners.html" class="doc-nav-link prev">
+        <span class="doc-nav-link-label">Previous</span>
+        <span class="doc-nav-link-title">Test Runners</span>
+      </a>
+      <a href="agent-skill.html" class="doc-nav-link next">
+        <span class="doc-nav-link-label">Next</span>
+        <span class="doc-nav-link-title">Agent Skill</span>
+      </a>
+    </div>
+  </main>
+
+  <script type="module" src="components/layout.js"></script>
+</body>
+</html>

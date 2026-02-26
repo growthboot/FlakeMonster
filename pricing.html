@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>FlakeMonster CI — Pricing</title>
+  <title>FlakeMonster CI — Upgrade to Pro</title>
   <link rel="icon" type="image/svg+xml" href="website/logo.svg">
   <link rel="stylesheet" href="website/styles.css">
 
@@ -33,68 +33,55 @@
       <div class="nav-links">
         <a href="index.html#ci-section">CI</a>
         <a href="index.html#pricing-section">Pricing</a>
+        <a href="docs/">Docs</a>
         <a href="https://github.com/growthboot/FlakeMonster">GitHub</a>
+        <a href="account.html" class="nav-account-link">Account</a>
         <button class="theme-toggle" data-theme-toggle aria-label="Toggle dark mode"></button>
       </div>
     </div>
   </nav>
 
-  <!-- Header -->
-  <section class="pricing-page-header">
-    <h1>FlakeMonster CI Pricing</h1>
-    <p>The free tier works automatically — no signup required. Just add the action to your workflow.</p>
-  </section>
-
-  <!-- Free tier info -->
-  <section id="free" class="pricing-form-section">
-    <div class="pricing-form-card">
-      <div class="pricing-form-card-header">
-        <h2>Free</h2>
-        <p>50 checks per month, per repository. No account or configuration needed.</p>
+  <!-- Checkout -->
+  <section class="checkout-section">
+    <div class="checkout-card">
+      <div class="checkout-header">
+        <h1>Upgrade to Pro</h1>
+        <div class="checkout-price">$29<span>/mo</span></div>
+        <p>Unlimited GitHub Action checks. Cancel anytime.</p>
       </div>
-      <div class="pricing-setup-steps">
-        <h3>Setup</h3>
-        <ol>
-          <li>Add the action to your workflow:
-            <pre class="pricing-setup-code"><span class="syn-kw">permissions</span><span class="syn-pun">:</span>
-  <span class="syn-kw">pull-requests</span><span class="syn-pun">:</span> <span class="syn-str">write</span>
-  <span class="syn-kw">id-token</span><span class="syn-pun">:</span> <span class="syn-str">write</span>
 
-<span class="syn-kw">steps</span><span class="syn-pun">:</span>
-  <span class="syn-pun">-</span> <span class="syn-kw">uses</span><span class="syn-pun">:</span> <span class="syn-str">actions/checkout@v4</span>
-  <span class="syn-pun">-</span> <span class="syn-kw">uses</span><span class="syn-pun">:</span> <span class="syn-str">actions/setup-node@v4</span>
-  <span class="syn-pun">-</span> <span class="syn-kw">run</span><span class="syn-pun">:</span> <span class="syn-str">npm ci</span>
-  <span class="syn-pun">-</span> <span class="syn-kw">uses</span><span class="syn-pun">:</span> <span class="syn-str">flake-monster/action@v1</span>
-    <span class="syn-kw">with</span><span class="syn-pun">:</span>
-      <span class="syn-kw">test-command</span><span class="syn-pun">:</span> <span class="syn-str">npm test</span></pre>
-          </li>
-          <li>That's it. The <code>id-token: write</code> permission enables automatic usage tracking via GitHub OIDC.</li>
-        </ol>
-      </div>
-    </div>
-  </section>
-
-  <!-- Upgrade -->
-  <section id="upgrade" class="pricing-form-section">
-    <div class="pricing-form-card">
-      <div class="pricing-form-card-header">
-        <h2>Upgrade to Pro</h2>
-        <p>Unlimited checks for $29/month. Enter your GitHub repository to upgrade.</p>
-      </div>
-      <form id="upgrade-form">
-        <div class="pricing-form-row">
-          <div class="pricing-form-field">
-            <label for="up-owner">GitHub owner</label>
-            <input type="text" id="up-owner" placeholder="user-or-org" required>
-          </div>
-          <div class="pricing-form-field">
-            <label for="up-repo">Repository</label>
-            <input type="text" id="up-repo" placeholder="repo-name" required>
+      <form id="checkout-form">
+        <!-- Primary: GitHub URL -->
+        <div class="checkout-input-group" id="url-input-group">
+          <div class="setup-form-field">
+            <label for="checkout-url">GitHub repository URL</label>
+            <input type="url" id="checkout-url" placeholder="https://github.com/your-org/your-repo">
           </div>
         </div>
-        <button type="submit" class="pricing-btn pricing-btn-primary" id="up-btn">Continue to Checkout</button>
-        <div class="pricing-form-error" id="up-error"></div>
+
+        <!-- Secondary: Manual (hidden by default) -->
+        <div class="checkout-input-group" id="manual-input-group" style="display:none">
+          <div class="setup-form-field" style="margin-bottom:12px">
+            <label for="checkout-owner">GitHub owner</label>
+            <input type="text" id="checkout-owner" placeholder="user-or-org">
+          </div>
+          <div class="setup-form-field">
+            <label for="checkout-repo">Repository</label>
+            <input type="text" id="checkout-repo" placeholder="repo-name">
+          </div>
+        </div>
+
+        <button type="button" class="checkout-toggle" id="input-toggle">Enter manually instead</button>
+
+        <button type="submit" class="pricing-btn pricing-btn-primary checkout-submit" id="checkout-btn">Continue to Checkout</button>
+        <div class="pricing-form-error" id="checkout-error"></div>
       </form>
+
+      <div class="checkout-footer">
+        <span>Secure checkout via Stripe</span>
+        <span class="footer-sep">&middot;</span>
+        <span>Looking for the free tier? <a href="setup.html">Set up here</a></span>
+      </div>
     </div>
   </section>
 
@@ -110,37 +97,90 @@
   </footer>
 
   <script>
-    const CLOUD_API = 'https://flake-monster.web.app';
+    const CLOUD_API = location.hostname === 'localhost' ? '' : 'https://api.flakemonster.com';
 
-    // ── Upgrade ──
-    const upForm = document.getElementById('upgrade-form');
-    const upBtn = document.getElementById('up-btn');
-    const upError = document.getElementById('up-error');
+    // ── Input mode toggle ──
+    const urlGroup = document.getElementById('url-input-group');
+    const manualGroup = document.getElementById('manual-input-group');
+    const toggle = document.getElementById('input-toggle');
+    let mode = 'url';
 
-    upForm.addEventListener('submit', async (e) => {
+    toggle.addEventListener('click', () => {
+      if (mode === 'url') {
+        mode = 'manual';
+        urlGroup.style.display = 'none';
+        manualGroup.style.display = 'block';
+        toggle.textContent = 'Paste GitHub URL instead';
+      } else {
+        mode = 'url';
+        urlGroup.style.display = 'block';
+        manualGroup.style.display = 'none';
+        toggle.textContent = 'Enter manually instead';
+      }
+    });
+
+    // ── GitHub URL parsing ──
+    function parseGitHubUrl(url) {
+      try {
+        const u = new URL(url);
+        if (u.hostname !== 'github.com') return null;
+        const parts = u.pathname.replace(/^\//, '').replace(/\.git$/, '').split('/');
+        if (parts.length < 2 || !parts[0] || !parts[1]) return null;
+        return { owner: parts[0], repo: parts[1] };
+      } catch {
+        return null;
+      }
+    }
+
+    // ── Checkout form ──
+    const form = document.getElementById('checkout-form');
+    const btn = document.getElementById('checkout-btn');
+    const error = document.getElementById('checkout-error');
+
+    form.addEventListener('submit', async (e) => {
       e.preventDefault();
-      upError.style.display = 'none';
-      upBtn.disabled = true;
-      upBtn.textContent = 'Redirecting...';
+      error.style.display = 'none';
+
+      let owner, repo;
+
+      if (mode === 'url') {
+        const val = document.getElementById('checkout-url').value.trim();
+        const parsed = parseGitHubUrl(val);
+        if (!parsed) {
+          error.textContent = 'Please enter a valid GitHub repository URL (e.g. https://github.com/owner/repo)';
+          error.style.display = 'block';
+          return;
+        }
+        owner = parsed.owner;
+        repo = parsed.repo;
+      } else {
+        owner = document.getElementById('checkout-owner').value.trim();
+        repo = document.getElementById('checkout-repo').value.trim();
+        if (!owner || !repo) {
+          error.textContent = 'Please enter both the owner and repository name.';
+          error.style.display = 'block';
+          return;
+        }
+      }
+
+      btn.disabled = true;
+      btn.textContent = 'Redirecting to Stripe...';
 
       try {
         const res = await fetch(`${CLOUD_API}/api/checkout`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            owner: document.getElementById('up-owner').value.trim(),
-            repo: document.getElementById('up-repo').value.trim(),
-          }),
+          body: JSON.stringify({ owner, repo }),
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Checkout failed');
 
         window.location.href = data.url;
       } catch (err) {
-        upError.textContent = err.message;
-        upError.style.display = 'block';
-        upBtn.disabled = false;
-        upBtn.textContent = 'Continue to Checkout';
+        error.textContent = err.message;
+        error.style.display = 'block';
+        btn.disabled = false;
+        btn.textContent = 'Continue to Checkout';
       }
     });
 

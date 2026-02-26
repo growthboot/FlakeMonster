@@ -38,18 +38,21 @@ export async function loadConfig(projectRoot) {
 
 /**
  * Merge loaded config with CLI options (CLI wins).
+ * Only overrides when the user actually passed a flag (value is not undefined).
+ * Commander option defaults should be set to undefined so that unpassed flags
+ * don't shadow config file values.
  * @param {Object} config
  * @param {Object} cliOptions
  * @returns {Object}
  */
 export function mergeWithCliOptions(config, cliOptions) {
   const merged = { ...config };
-  if (cliOptions.mode) merged.mode = cliOptions.mode;
-  if (cliOptions.seed) merged.seed = cliOptions.seed;
-  if (cliOptions.minDelay) merged.minDelayMs = Number(cliOptions.minDelay);
-  if (cliOptions.maxDelay) merged.maxDelayMs = Number(cliOptions.maxDelay);
-  if (cliOptions.cmd) merged.testCommand = cliOptions.cmd;
-  if (cliOptions.runs) merged.runs = Number(cliOptions.runs);
+  if (cliOptions.mode !== undefined) merged.mode = cliOptions.mode;
+  if (cliOptions.seed !== undefined) merged.seed = cliOptions.seed;
+  if (cliOptions.minDelay !== undefined) merged.minDelayMs = Number(cliOptions.minDelay);
+  if (cliOptions.maxDelay !== undefined) merged.maxDelayMs = Number(cliOptions.maxDelay);
+  if (cliOptions.cmd !== undefined) merged.testCommand = cliOptions.cmd;
+  if (cliOptions.runs !== undefined) merged.runs = Number(cliOptions.runs);
   if (cliOptions.keepOnFail) merged.keepOnFail = true;
   if (cliOptions.keepAll) merged.keepAll = true;
   if (cliOptions.skipTryCatch) merged.skipTryCatch = true;
